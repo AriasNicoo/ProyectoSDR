@@ -45,13 +45,14 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
+      // 1. Trigger: Solo procesar si el texto contiene "SDR: Nicolas Arias"
       if (event.type === 'message' && !event.bot_id && event.text && event.text.includes('SDR: Nicolas Arias')) {
         const texto = event.text;
 
-        // Feedback Visual Inmediato (✅)
-        await addSlackReaction(event.channel, event.ts, 'white_check_mark');
+        // 2. Emoji Feedback: Cohete (🚀)
+        await addSlackReaction(event.channel, event.ts, 'rocket');
 
-        // Regex Parser Edenred
+        // 3. Regex de Precisión (Formato Edenred)
         const nombreMatch = texto.match(/Nombre Contacto:\s*(.+)/i);
         const empresaMatch = texto.match(/Empresa:\s*(.+)/i);
         const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
@@ -64,13 +65,13 @@ export async function POST(req: Request) {
         const diaHoraStr = diaHoraMatch ? diaHoraMatch[1].trim() : '';
         const contexto = contextoMatch ? contextoMatch[1].trim() : '';
 
-        // Formato Chileno
+        // Formato Chileno (Elimina +, espacios y letras, asume prefijo 569 si no tiene)
         telefono = telefono.replace(/\D/g, ''); 
         if (telefono.length === 8) telefono = '569' + telefono;
         else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
         else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
 
-        // Extraer Date (YYYY-MM-DD) y Time (HH:mm:ss)
+        // Extraer Date y Time
         let fecha = '';
         let hora = '10:00:00';
         
@@ -96,9 +97,9 @@ export async function POST(req: Request) {
           fecha = new Date().toISOString().split('T')[0];
         }
 
-        const notasFinales = contexto; // Empresa ya tiene columna propia
+        const notasFinales = contexto;
 
-        // Insertar en Supabase (con los campos EXACTOS solicitados)
+        // 4. Database: Insertar en la tabla 'reuniones'
         const { error } = await supabase.from('reuniones').insert([{
           nombre_prospecto: nombre,
           empresa: empresa,
@@ -118,9 +119,10 @@ export async function POST(req: Request) {
           );
         } else {
           console.log(`✅ Reunión Edenred creada para: ${nombre}`);
+          // 5. Thread Reply: Mensaje final solicitado
           await sendSlackConfirmation(
             event.channel, 
-            `✅ Nicolás, ya agendé a *${nombre}* de ${empresa} en tu Dashboard.`,
+            `✅ Nicolas, agendé a ${nombre} de ${empresa} en tu Dashboard. ¡A darle!`,
             event.ts
           );
         }
