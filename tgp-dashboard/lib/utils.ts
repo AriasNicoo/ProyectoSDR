@@ -9,7 +9,14 @@ import type { Reunion, FiltroFecha } from './types'
 export function getRangoFecha(filtro: FiltroFecha): { desde: string; hasta: string } | null {
   if (filtro === 'todos') return null
 
-  const hoy = new Date()
+  let hoy = new Date()
+  
+  // Si es Sábado (6) o Domingo (0), adelantamos la referencia para mostrar la PRÓXIMA semana
+  const diaSemana = hoy.getDay()
+  if (diaSemana === 6 || diaSemana === 0) {
+    hoy = addDays(hoy, 2)
+  }
+
   const lunesSemanaActual = startOfWeek(hoy, { weekStartsOn: 1 })
 
   const diasOffset: Record<string, number> = {
