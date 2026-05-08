@@ -59,7 +59,10 @@ export async function POST(req: Request) {
 
   // 3. Challenge Handler: Para cuando configuremos la URL en Slack por primera vez
   if (body.type === 'url_verification') {
-    return NextResponse.json({ challenge: body.challenge })
+    return new NextResponse(body.challenge, {
+      status: 200,
+      headers: { 'Content-Type': 'text/plain' },
+    })
   }
 
   // 4. Procesar Evento de Mensaje
