@@ -20,11 +20,11 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
       {/* Header: Nombre, Empresa y Hora */}
       <div className="card-header">
         <div className="card-title-group">
-          <span className="meeting-empresa">{reunion.empresa || 'Empresa N/A'}</span>
-          <span className="meeting-name">{reunion.nombre_prospecto}</span>
+          <span className="meeting-empresa">{reunion.empresa || 'Sin Empresa'}</span>
+          <span className="meeting-name">{reunion.nombre_prospecto || 'Sin Nombre'}</span>
         </div>
         <div className="meeting-time-pill">
-          {reunion.hora_reunion.substring(0, 5)}
+          {reunion.hora_reunion ? reunion.hora_reunion.substring(0, 5) : '--:--'}
         </div>
       </div>
 

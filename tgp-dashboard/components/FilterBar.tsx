@@ -10,6 +10,7 @@ interface FilterBarProps {
 }
 
 const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
+  { key: 'todos',     label: 'Todos',     short: 'T' },
   { key: 'lunes',     label: 'Lunes',     short: 'L' },
   { key: 'martes',    label: 'Martes',    short: 'M' },
   { key: 'miercoles', label: 'Miércoles', short: 'M' },
