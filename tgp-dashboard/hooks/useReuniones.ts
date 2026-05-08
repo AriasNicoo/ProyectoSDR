@@ -48,9 +48,13 @@ export function useReuniones(): UseReunionesReturn {
     setError(null)
 
     try {
+      const hoy = new Date().toISOString().split('T')[0]
+      
       let query = supabase
         .from('reuniones')
         .select('*')
+        .gte('fecha_reunion', hoy) // Solo mostrar desde hoy en adelante
+        .order('fecha_reunion', { ascending: true })
         .order('hora_reunion', { ascending: true })
 
       const rango = getRangoFecha(filtro)
