@@ -59,26 +59,30 @@ export function buildWhatsAppMessage(
   tipo: 'post_llamada' | '24h' | '1h',
   nombre: string,
   fecha: string,
-  hora: string
+  hora: string,
+  linkMeet?: string | null
 ): string {
   const fechaTexto = formatearFechaReunion(fecha, hora)
 
   switch (tipo) {
     case 'post_llamada':
+      const linkTexto = linkMeet ? `\n\nAquí tienes el enlace de Google Meet para nuestra reunión:\n👉 ${linkMeet}\n\n¡Por favor, dale que SÍ en tu invitación de calendario al tiro para confirmar asistencia! 📅` : ''
       return (
         `Hola ${nombre}! 👋 Gracias por tu tiempo hoy.\n\n` +
-        `Me da mucho gusto haber conversado contigo. ` +
-        `Quedamos en reunirnos el ${fechaTexto}. Cualquier duda estoy disponible. ¡Hasta entonces! 🚀`
+        `Me dio mucho gusto conversar contigo. ` +
+        `Quedamos agendados para el ${fechaTexto}.${linkTexto}\n\n¡Cualquier duda estoy disponible, nos vemos pronto! 🚀`
       )
     case '24h':
+      const link24h = linkMeet ? `\n\nEnlace de acceso a Meet:\n👉 ${linkMeet}` : ''
       return (
         `Hola ${nombre}! ⏰ Solo quería recordarte que nuestra reunión es mañana.\n\n` +
-        `Tenemos agendada para el ${fechaTexto}. ¿Todo bien por tu parte? ¡Nos vemos pronto!`
+        `Tenemos agendada para el ${fechaTexto}.${link24h}\n\n¿Todo bien por tu parte? ¡Nos vemos pronto!`
       )
     case '1h':
+      const link1h = linkMeet ? `\n\nEnlace para ingresar directo:\n👉 ${linkMeet}` : ''
       return (
         `Hola ${nombre}! 🔔 Nuestra reunión es en 1 hora.\n\n` +
-        `Hora: ${fechaTexto}. ¡Aquí estaré listo! Cualquier cambio, avísame.`
+        `Hora: ${fechaTexto}.${link1h}\n\n¡Aquí estaré listo! Cualquier cambio, avísame.`
       )
   }
 }
