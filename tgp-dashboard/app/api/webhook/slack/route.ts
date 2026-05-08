@@ -6,6 +6,33 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+/**
+ * Envía un mensaje de confirmación de vuelta al canal de Slack
+ */
+async function sendSlackConfirmation(channelId: string, text: string) {
+  const token = process.env.SLACK_BOT_TOKEN;
+  if (!token) {
+    console.error("No hay SLACK_BOT_TOKEN configurado en el .env.local para responder.");
+    return;
+  }
+  
+  try {
+    await fetch('https://slack.com/api/chat.postMessage', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        channel: channelId,
+        text: text
+      })
+    });
+  } catch (error) {
+    console.error("Error enviando mensaje a Slack:", error);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -22,7 +49,7 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Filtro estricto: Solo procesar mensajes reales que contengan la clave
+      // Filtro: Solo procesar mensajes que contengan "SDR: Nicolas Arias"
       if (
         event.type === 'message' &&
         !event.bot_id &&
@@ -31,7 +58,7 @@ export async function POST(req: Request) {
       ) {
         const texto = event.text;
 
-        // --- Lógica del Parser (Regex Power) ---
+        // --- Lógica del Parser (Regex) ---
         const nombreMatch = texto.match(/Nombre:\s*(.+)/i);
         const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
         const fechaMatch = texto.match(/Fecha:\s*(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})/i);
@@ -51,21 +78,21 @@ export async function POST(req: Request) {
         } else if (telefono.length === 9 && telefono.startsWith('9')) {
           telefono = '56' + telefono;
         } else if (telefono.length === 11 && telefono.startsWith('569')) {
-          // Formato perfecto, no se altera
+          // Formato perfecto
         } else if (!telefono.startsWith('56') && telefono.length > 0) {
-          // Fallback de seguridad
+          // Fallback
           telefono = '56' + telefono;
         }
 
-        // --- Procesamiento de Fecha y Hora ---
+        // --- Procesamiento de Fecha ---
         if (fecha.includes('/')) {
           const [dia, mes, anio] = fecha.split('/');
           fecha = `${anio}-${mes}-${dia}`;
         } else if (!fecha) {
-          fecha = new Date().toISOString().split('T')[0]; // Hoy como fallback
+          fecha = new Date().toISOString().split('T')[0]; // Hoy por defecto
         }
 
-        // ISO exacto para Supabase: "YYYY-MM-DDTHH:mm:00"
+        // ISO para Supabase
         const fechaISO = `${fecha}T${hora.padStart(5, '0')}:00`;
         const notasFinales = linkMeet ? `Enlace reunión: ${linkMeet}` : null;
 
@@ -83,8 +110,12 @@ export async function POST(req: Request) {
 
         if (error) {
           console.error('Error insertando en Supabase:', error);
+          // Respuesta de Error al Slack
+          await sendSlackConfirmation(event.channel, `❌ Error al registrar en Supabase la reunión para *${nombre}*. Revisa los logs.`);
         } else {
           console.log(`✅ Reunión creada vía Slack para: ${nombre}`);
+          // Respuesta de Éxito al Slack
+          await sendSlackConfirmation(event.channel, `✅ ¡Reunión agendada con éxito para *${nombre}*! Ya está visible en el TGP Dashboard.`);
         }
       }
     }
@@ -94,7 +125,6 @@ export async function POST(req: Request) {
 
   } catch (error) {
     console.error("Error crítico en el Webhook:", error);
-    // Slack reintenta si enviamos 500. Retornamos 200 OK con un flag de error interno.
-    return NextResponse.json({ ok: false, error: "Internal Parsing Error" }, { status: 200 });
+    return NextResponse.json({ ok: false, error: "Internal Error" }, { status: 200 });
   }
 }
