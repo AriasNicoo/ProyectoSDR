@@ -218,19 +218,24 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           let rawInvitados = row[invitadosIdx] || ''
 
           // --- AUTO-HEALING/INTELIGENCIA CONTRA SHIFTING (Desplazamiento de columnas) ---
-          // Si Invitados Adicionales es vacío, y las columnas subsecuentes se corrieron, reparemoslo analíticamente:
-          const rowValues = row.map(v => v?.toString().trim() || '')
+          // Limpiamos los rowValues garantizando que sean strings y no haya arrays dispersos con elementos vacíos (holes)
+          const rowValues: string[] = []
+          for (let colIdx = 0; colIdx < row.length; colIdx++) {
+            const cellVal = row[colIdx]
+            rowValues.push(cellVal !== null && cellVal !== undefined ? cellVal.toString().trim() : '')
+          }
           
           // Buscar email en cualquier celda por si acaso
-          const foundEmail = rowValues.find(v => v.includes('@'))
+          const foundEmail = rowValues.find(v => v && v.includes('@'))
           if (foundEmail) rawEmail = foundEmail
 
           // Buscar canal (CALL, EMAIL, etc.) en cualquier celda
-          const foundCanal = rowValues.find(v => ['CALL', 'EMAIL', 'WHATSAPP'].includes(v.toUpperCase()))
+          const foundCanal = rowValues.find(v => v && ['CALL', 'EMAIL', 'WHATSAPP'].includes(v.toUpperCase()))
           if (foundCanal) rawCanal = foundCanal
 
           // Buscar teléfono (números largos o notación científica)
           const foundPhone = rowValues.find(v => {
+            if (!v) return false
             const clean = v.replace(/\D/g, '')
             return (clean.length >= 8 && clean.length <= 15) || v.toUpperCase().includes('E+')
           })
@@ -239,19 +244,21 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           }
 
           // Si el "Teléfono" contiene un rol o cargo como "Jefe de" o "Socio", es porque está desplazado!
-          if (rawTelefono && (rawTelefono.toLowerCase().includes('jefe') || rawTelefono.toLowerCase().includes('socio') || rawTelefono.toLowerCase().includes('ceo') || rawTelefono.toLowerCase().includes('gerente'))) {
-            rawCargo = rawTelefono
+          const rawTelefonoStr = rawTelefono ? rawTelefono.toString().trim() : ''
+          if (rawTelefonoStr && (rawTelefonoStr.toLowerCase().includes('jefe') || rawTelefonoStr.toLowerCase().includes('socio') || rawTelefonoStr.toLowerCase().includes('ceo') || rawTelefonoStr.toLowerCase().includes('gerente'))) {
+            rawCargo = rawTelefonoStr
             rawTelefono = ''
           }
 
           // SDR Name por defecto si está vacío o mal alineado
-          if (!rawSdr || rawSdr.toLowerCase().includes('beta')) {
-            const foundSdr = rowValues.find(v => v.toLowerCase().includes('nicolas') || v.toLowerCase().includes('arias'))
+          const rawSdrStr = rawSdr ? rawSdr.toString().trim() : ''
+          if (!rawSdrStr || rawSdrStr.toLowerCase().includes('beta')) {
+            const foundSdr = rowValues.find(v => v && (v.toLowerCase().includes('nicolas') || v.toLowerCase().includes('arias')))
             if (foundSdr) rawSdr = foundSdr
           }
 
           // Formateo final de campos
-          const nombreProspecto = rawNombre.toString().trim() || 'Prospecto'
+          const nombreProspecto = rawNombre ? rawNombre.toString().trim() : 'Prospecto'
           const { fecha, hora } = parseDateAndTime(rawFecha)
           const telefonoFinal = cleanAndFormatPhone(rawTelefono)
 
@@ -261,7 +268,11 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           if (rawEjecutivos) metaNotas.push(`Ejecutivos: ${rawEjecutivos}`)
           if (rawPais) metaNotas.push(`País: ${rawPais}`)
           if (rawPod) metaNotas.push(`Pod: ${rawPod}`)
-          if (rawInvitados && !rawInvitados.toUpperCase().includes('E+')) metaNotas.push(`Invitados: ${rawInvitados}`)
+          
+          const rawInvitadosStr = rawInvitados ? rawInvitados.toString().trim() : ''
+          if (rawInvitadosStr && !rawInvitadosStr.toUpperCase().includes('E+')) {
+            metaNotas.push(`Invitados: ${rawInvitadosStr}`)
+          }
           
           const notasMetaStr = metaNotas.length > 0 ? `[${metaNotas.join(' | ')}]` : ''
           const notasFinal = notasMetaStr ? `${notasMetaStr}` : null
