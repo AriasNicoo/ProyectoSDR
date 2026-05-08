@@ -38,6 +38,10 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
           <span className="detail-label">SDR</span>
           <span className="detail-value">{reunion.sdr_name || 'N/A'}</span>
         </div>
+        <div className="detail-item">
+          <span className="detail-label">Teléfono</span>
+          <span className="detail-value">{reunion.telefono || 'N/A'}</span>
+        </div>
         <div className="detail-item" style={{ gridColumn: 'span 2' }}>
           <span className="detail-label">Link de Reunión</span>
           {reunion.link_meet ? (
