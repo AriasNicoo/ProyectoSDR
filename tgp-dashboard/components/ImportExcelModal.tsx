@@ -418,13 +418,25 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         // Validación de duplicados idéntica a la lógica del webhook de Slack
         const { data: existingMeeting } = await supabase
           .from('reuniones')
-          .select('id')
+          .select('id, link_meet, notas')
           .eq('nombre_prospecto', item.nombre_prospecto)
           .eq('fecha_reunion', item.fecha_reunion)
           .eq('hora_reunion', item.hora_reunion)
           .maybeSingle()
 
         if (existingMeeting) {
+          // Si ya existe pero no tenía link de Meet, ¡se lo actualizamos automáticamente!
+          if (item.link_meet && !existingMeeting.link_meet) {
+            const { error: updateErr } = await supabase
+              .from('reuniones')
+              .update({ link_meet: item.link_meet, notas: item.notas || existingMeeting.notas })
+              .eq('id', existingMeeting.id)
+            
+            if (!updateErr) {
+              insertados++
+              continue
+            }
+          }
           duplicados++
           continue
         }

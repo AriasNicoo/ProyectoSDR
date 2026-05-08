@@ -123,13 +123,23 @@ export async function POST(req: Request) {
         // Verificamos si ya existe una reunión con el mismo nombre, fecha y hora
         const { data: existingMeeting } = await supabase
           .from('reuniones')
-          .select('id')
+          .select('id, link_meet')
           .eq('nombre_prospecto', nombre)
           .eq('fecha_reunion', fecha)
           .eq('hora_reunion', hora)
           .maybeSingle();
 
         if (existingMeeting) {
+          if (linkMeet && !existingMeeting.link_meet) {
+            const { error: updateErr } = await supabase
+              .from('reuniones')
+              .update({ link_meet: linkMeet, notas: notasFinal })
+              .eq('id', existingMeeting.id);
+            if (!updateErr) {
+              console.log('Reunión existente actualizada con link de Meet con éxito.');
+              return NextResponse.json({ ok: true, updated: 'link_meet' }, { status: 200 });
+            }
+          }
           console.log('Reunión duplicada detectada, ignorando...');
           return NextResponse.json({ ok: true, skipped: 'duplicate' }, { status: 200 });
         }
