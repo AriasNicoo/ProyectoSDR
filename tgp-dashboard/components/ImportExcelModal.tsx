@@ -31,6 +31,8 @@ interface ParsedMeeting {
 }
 
 export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch }: ImportExcelModalProps) {
+  const [activeTab, setActiveTab] = useState<'excel' | 'slack'>('excel')
+  const [pastedText, setPastedText] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [file, setFile] = useState<File | null>(null)
   const [parsedData, setParsedData] = useState<ParsedMeeting[]>([])
@@ -154,6 +156,84 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
     }
 
     return { fecha, hora }
+  }
+
+  const handleParseSlackMessage = () => {
+    if (!pastedText.trim()) {
+      onError('❌ Por favor pega el texto de la reunión primero.')
+      return
+    }
+
+    try {
+      const texto = pastedText.trim()
+
+      const extract = (regex: RegExp) => {
+        const match = texto.match(regex)
+        return match ? match[1].trim() : null
+      }
+
+      const lineas = texto.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0)
+      const titulo = (lineas.length > 0 && !lineas[0].includes(':')) ? lineas[0] : 'Reunión Agendada'
+
+      const emailOrigen = extract(/Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/i)
+      const empresa = extract(/Empresa:\s*(.+)/i)
+      const nombre = extract(/Nombre Contacto:\s*(.+)/i) || 'Prospecto'
+      const correosContacto = extract(/Correos Contacto:\s*(.+)/i)
+      const cargo = extract(/Cargo:\s*(.+)/i)
+      let telefono = extract(/Tel[eé]fono:\s*(.+)/i)
+      const diaHoraStr = extract(/D[ií]a y Hora:\s*(.+)/i) || ''
+      const agendadoPara = extract(/Agendado para:\s*(.+)/i)
+      const canal = extract(/Canal:\s*(.+)/i)
+      const sdrName = extract(/SDR:\s*(.+)/i)
+      const linkMeet = extract(/Link a Google Meet:\s*(https?:\/\/\S+)/i)
+      
+      const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nLink a Google Meet:|\nSDR:|\n$|$)/i)
+      const contexto = contextoMatch ? contextoMatch[1].trim() : null
+
+      const telefonoFinal = cleanAndFormatPhone(telefono)
+
+      let fecha = new Date().toISOString().split('T')[0]
+      let hora = '10:00:00'
+      const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(:\d{2})?)/)
+      if (dateParts) {
+        fecha = dateParts[1]
+        hora = dateParts[2]
+        if (hora.length === 5) hora += ':00' 
+      } else {
+        const partes = diaHoraStr.split(/\s+/)
+        if (partes.length >= 2) {
+          fecha = partes[0]
+          hora = partes[1].substring(0, 5) + ':00'
+        }
+      }
+
+      if (fecha.includes('/')) {
+        const [dia, mes, anio] = fecha.split('/')
+        fecha = `${anio}-${mes}-${dia}`
+      }
+
+      const meeting: ParsedMeeting = {
+        titulo_reunion: empresa ? `Reunión con ${empresa}` : titulo,
+        email_origen: emailOrigen,
+        empresa: empresa || 'Sin Empresa',
+        nombre_prospecto: nombre,
+        correos_contacto: correosContacto || emailOrigen,
+        cargo: cargo,
+        telefono: telefonoFinal,
+        fecha_reunion: fecha,
+        hora_reunion: hora,
+        agendado_para: agendadoPara,
+        canal: canal ? canal.toUpperCase() : 'CALL',
+        notas: contexto,
+        sdr_name: sdrName || 'Nicolas Arias',
+        link_meet: linkMeet
+      }
+
+      setParsedData([meeting])
+      onSuccess('🎉 Mensaje de Slack analizado correctamente. Revisa la vista previa abajo.')
+    } catch (err: any) {
+      onError(`❌ Error al analizar el mensaje de Slack: ${err.message}`)
+    }
   }
 
   const processFile = (file: File) => {
@@ -365,72 +445,160 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         <div className="modal-header" style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileSpreadsheet className="text-emerald" style={{ color: 'var(--accent-green)', width: '22px', height: '22px' }} />
-            <h2 className="modal-title" style={{ fontSize: '18px', fontWeight: 700 }}>Importar desde Excel</h2>
+            <h2 className="modal-title" style={{ fontSize: '18px', fontWeight: 700 }}>Importar / Agendar Reunión</h2>
           </div>
           <button className="modal-close" onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '20px', cursor: 'pointer' }}>×</button>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1, padding: '16px 0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Tab Selector */}
+        {parsedData.length === 0 && (
+          <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+            <button
+              onClick={() => setActiveTab('excel')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'excel' ? '2px solid var(--accent-green)' : 'none',
+                color: activeTab === 'excel' ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Subir Archivo Excel
+            </button>
+            <button
+              onClick={() => setActiveTab('slack')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'slack' ? '2px solid var(--accent-green)' : 'none',
+                color: activeTab === 'slack' ? 'var(--text-primary)' : 'var(--text-muted)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontSize: '13px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Pegar Mensaje de Slack
+            </button>
+          </div>
+        )}
+
+        <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {parsedData.length === 0 ? (
-            <>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Sube tu archivo de exportación de Excel o CSV. Nuestro sistema de mapeo inteligente corregirá de forma automática los números de teléfono e ignorará registros duplicados.
-              </p>
+            activeTab === 'excel' ? (
+              <>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Sube tu archivo de exportación de Excel o CSV. Nuestro sistema de mapeo inteligente corregirá de forma automática los números de teléfono e ignorará registros duplicados.
+                </p>
 
-              <div
-                onDragEnter={handleDrag}
-                onDragOver={handleDrag}
-                onDragLeave={handleDrag}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: `2px dashed ${dragActive ? 'var(--accent-green)' : 'var(--border-strong)'}`,
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '36px 20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: dragActive ? 'rgba(46, 160, 67, 0.05)' : 'var(--bg-elevated)',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileChange}
-                  style={{ display: 'none' }}
-                />
-                
-                {loading ? (
-                  <Loader2 className="animate-spin" style={{ color: 'var(--accent-green)', width: '36px', height: '36px', animation: 'spin 1s linear infinite' }} />
-                ) : (
-                  <Upload style={{ color: 'var(--text-secondary)', width: '36px', height: '36px' }} />
-                )}
+                <div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${dragActive ? 'var(--accent-green)' : 'var(--border-strong)'}`,
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '36px 20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    backgroundColor: dragActive ? 'rgba(46, 160, 67, 0.05)' : 'var(--bg-elevated)',
+                    transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                  />
+                  
+                  {loading ? (
+                    <Loader2 className="animate-spin" style={{ color: 'var(--accent-green)', width: '36px', height: '36px', animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <Upload style={{ color: 'var(--text-secondary)', width: '36px', height: '36px' }} />
+                  )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 600 }}>
-                    {loading ? 'Analizando archivo...' : 'Arrastra tu Excel aquí o haz clic para buscar'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Soporta archivos .xlsx, .xls, .csv
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600 }}>
+                      {loading ? 'Analizando archivo...' : 'Arrastra tu Excel aquí o haz clic para buscar'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Soporta archivos .xlsx, .xls, .csv
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div style={{ background: 'rgba(88, 166, 255, 0.05)', border: '1px solid rgba(88, 166, 255, 0.1)', borderRadius: 'var(--radius-md)', padding: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                <AlertTriangle style={{ color: 'var(--accent-blue)', width: '18px', height: '18px', flexShrink: 0, marginTop: '2px' }} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>Importación Segura</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                    Solo se importarán las reuniones agendadas desde hoy en adelante para mantener tu dashboard limpio y enfocado.
-                  </span>
+                <div style={{ background: 'rgba(88, 166, 255, 0.05)', border: '1px solid rgba(88, 166, 255, 0.1)', borderRadius: 'var(--radius-md)', padding: '12px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <AlertTriangle style={{ color: 'var(--accent-blue)', width: '18px', height: '18px', flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>Importación Segura</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                      Solo se importarán las reuniones agendadas desde hoy en adelante para mantener tu dashboard limpio y enfocado.
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  Pega el mensaje de Slack de la reunión agendada. Se extraerán automáticamente todos los campos y podrás ver una vista previa antes de guardarla.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <textarea
+                    value={pastedText}
+                    onChange={(e) => setPastedText(e.target.value)}
+                    placeholder={`Ejemplo:\nReunión Agendada\nEmpresa: Google\nNombre Contacto: John Doe\nDía y Hora: 2026-06-15 14:00\nSDR: Nicolas Arias`}
+                    style={{
+                      width: '100%',
+                      height: '160px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-strong)',
+                      backgroundColor: 'var(--bg-base)',
+                      color: 'var(--text-primary)',
+                      padding: '12px',
+                      fontSize: '13px',
+                      fontFamily: 'monospace',
+                      resize: 'none',
+                      outline: 'none',
+                      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                  <button
+                    onClick={handleParseSlackMessage}
+                    style={{
+                      alignSelf: 'flex-end',
+                      padding: '8px 18px',
+                      backgroundColor: 'var(--accent-green)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 10px var(--accent-green-glow)',
+                      transition: 'transform 0.15s ease'
+                    }}
+                  >
+                    Analizar Mensaje
+                  </button>
+                </div>
+              </>
+            )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
