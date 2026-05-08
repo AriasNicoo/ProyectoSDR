@@ -7,7 +7,7 @@ const supabase = createClient(
 );
 
 /**
- * Función para añadir una reacción de emoji a un mensaje en Slack
+ * Añade una reacción (emoji) a un mensaje específico en Slack
  */
 async function addSlackReaction(channelId: string, timestamp: string, emoji: string) {
   const token = process.env.SLACK_BOT_TOKEN;
@@ -32,7 +32,7 @@ async function addSlackReaction(channelId: string, timestamp: string, emoji: str
 }
 
 /**
- * Envía un mensaje de confirmación de vuelta al canal de Slack
+ * Envía un mensaje a Slack (opcionalmente en un hilo)
  */
 async function sendSlackConfirmation(channelId: string, text: string, threadTs?: string) {
   const token = process.env.SLACK_BOT_TOKEN;
@@ -48,7 +48,7 @@ async function sendSlackConfirmation(channelId: string, text: string, threadTs?:
       body: JSON.stringify({
         channel: channelId,
         text: text,
-        thread_ts: threadTs // Responde en hilo para mantener limpio el canal principal
+        thread_ts: threadTs
       })
     });
   } catch (error) {
@@ -68,11 +68,11 @@ export async function POST(req: Request) {
       });
     }
 
-    // 2. Procesamiento de eventos de Slack
+    // 2. Procesamiento de Eventos
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Filtro estricto: Solo procesar mensajes que contengan la clave SDR
+      // Filtro principal: Solo SDR Nicolas Arias
       if (
         event.type === 'message' &&
         !event.bot_id &&
@@ -81,52 +81,45 @@ export async function POST(req: Request) {
       ) {
         const texto = event.text;
 
-        // Feedback Visual Inmediato (Reacción de check al mensaje original)
-        await addSlackReaction(event.channel, event.ts, 'white_check_mark');
+        // Feedback Visual Inmediato (🚀 rocket emoji)
+        await addSlackReaction(event.channel, event.ts, 'rocket');
 
-        // --- Lógica del Parser (Regex Power) ---
+        // --- Lógica del Parser Especial (Edenred) ---
         const nombreMatch = texto.match(/Nombre Contacto:\s*(.+)/i);
+        const empresaMatch = texto.match(/Empresa:\s*(.+)/i);
         const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
         const diaHoraMatch = texto.match(/D[ií]a y Hora:\s*(.+)/i);
-        const empresaMatch = texto.match(/Empresa:\s*(.+)/i);
-        // Usamos [^]* o [\s\S]* para capturar todo el contexto incluso con saltos de línea
         const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+)/i);
 
         const nombre = nombreMatch ? nombreMatch[1].trim() : 'Prospecto Sin Nombre';
+        const empresa = empresaMatch ? empresaMatch[1].trim() : 'Desconocida';
         let telefono = telMatch ? telMatch[1].trim() : '';
         const diaHoraStr = diaHoraMatch ? diaHoraMatch[1].trim() : '';
-        const empresa = empresaMatch ? empresaMatch[1].trim() : 'Desconocida';
         const contexto = contextoMatch ? contextoMatch[1].trim() : '';
 
-        // --- Procesamiento de Teléfono (Formato Chileno 569) ---
-        telefono = telefono.replace(/\D/g, ''); // Deja solo números
+        // Limpieza Teléfono Chileno (569)
+        telefono = telefono.replace(/\D/g, ''); 
         if (telefono.length === 8) {
           telefono = '569' + telefono;
         } else if (telefono.length === 9 && telefono.startsWith('9')) {
           telefono = '56' + telefono;
-        } else if (telefono.length === 11 && telefono.startsWith('569')) {
-          // Formato perfecto
         } else if (!telefono.startsWith('56') && telefono.length > 0) {
-          // Fallback
           telefono = '56' + telefono;
         }
 
-        // --- Procesamiento de Fecha y Hora ---
+        // Extracción de Fecha (YYYY-MM-DD) y Hora (HH:mm)
         let fecha = '';
         let hora = '10:00';
         
-        // Intentar extraer 'YYYY-MM-DD HH:mm' o similar
         const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2})/);
-        
         if (dateParts) {
           fecha = dateParts[1];
           hora = dateParts[2];
         } else {
-          // Fallback simple si no viene todo junto pero hay un espacio
           const partes = diaHoraStr.split(/\s+/);
           if (partes.length >= 2) {
             fecha = partes[0];
-            hora = partes[1].substring(0, 5); // Asegura "HH:mm"
+            hora = partes[1].substring(0, 5);
           } else if (partes.length === 1) {
             fecha = partes[0];
           }
@@ -136,16 +129,13 @@ export async function POST(req: Request) {
           const [dia, mes, anio] = fecha.split('/');
           fecha = `${anio}-${mes}-${dia}`;
         } else if (!fecha) {
-          fecha = new Date().toISOString().split('T')[0]; // Hoy por defecto
+          fecha = new Date().toISOString().split('T')[0];
         }
 
-        // ISO para Supabase "YYYY-MM-DDTHH:mm:00"
         const fechaISO = `${fecha}T${hora.padStart(5, '0')}:00`;
-        
-        // Empacar la Empresa y Contexto en el campo notas
-        const notasFinales = `Empresa: ${empresa}\nContexto: ${contexto}`;
+        const notasFinales = `Empresa: ${empresa} | Contexto: ${contexto}`;
 
-        // --- Integración con Supabase ---
+        // --- Inserción en Supabase ---
         const { error } = await supabase.from('reuniones').insert([{
           nombre_prospecto: nombre,
           telefono: telefono,
@@ -161,21 +151,20 @@ export async function POST(req: Request) {
           console.error('Error insertando en Supabase:', error);
           await sendSlackConfirmation(
             event.channel, 
-            `❌ Error al guardar a ${nombre} en Supabase.`, 
+            `❌ Error guardando a *${nombre}* de ${empresa}. Revisa los logs.`, 
             event.ts
           );
         } else {
-          console.log(`✅ Reunión creada vía Slack para: ${nombre}`);
+          console.log(`✅ Reunión Edenred creada para: ${nombre}`);
           await sendSlackConfirmation(
             event.channel, 
-            `✅ Ticket procesado: ${nombre} de ${empresa} ha sido agregado al Dashboard de Nicolás.`,
+            `✅ Nicolás, ya agendé a *${nombre}* de ${empresa} en tu Dashboard.`,
             event.ts
           );
         }
       }
     }
 
-    // 3. Respuesta obligatoria 200 OK a Slack (para que no reintente)
     return NextResponse.json({ ok: true }, { status: 200 });
 
   } catch (error) {
