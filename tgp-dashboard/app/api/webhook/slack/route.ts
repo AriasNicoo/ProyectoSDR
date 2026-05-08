@@ -78,6 +78,13 @@ export async function POST(req: Request) {
           telefono = '';
         } else if (telefono) {
           telefono = telefono.replace(/\D/g, ''); 
+          // Si el teléfono se duplicó (ej: 569...569...), tomamos solo la primera parte
+          if (telefono.length > 12 && telefono.startsWith(telefono.substring(telefono.length / 2))) {
+            telefono = telefono.substring(0, telefono.length / 2);
+          } else if (telefono.length > 15) {
+            telefono = telefono.substring(0, 11); // Fallback de seguridad
+          }
+          
           if (telefono.length === 8) telefono = '569' + telefono;
           else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
           else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
@@ -106,6 +113,21 @@ export async function POST(req: Request) {
           hora = '10:00:00';
         }
 
+        // --- ANTI-DUPLICADOS ---
+        // Verificamos si ya existe una reunión con el mismo nombre, fecha y hora
+        const { data: existingMeeting } = await supabase
+          .from('reuniones')
+          .select('id')
+          .eq('nombre_prospecto', nombre)
+          .eq('fecha_reunion', fecha)
+          .eq('hora_reunion', hora)
+          .maybeSingle();
+
+        if (existingMeeting) {
+          console.log('Reunión duplicada detectada, ignorando...');
+          return NextResponse.json({ ok: true, skipped: 'duplicate' }, { status: 200 });
+        }
+
         const { error } = await supabase.from('reuniones').insert([{
           titulo_reunion: titulo,
           email_origen: emailOrigen,
@@ -118,7 +140,7 @@ export async function POST(req: Request) {
           hora_reunion: hora,
           agendado_para: agendadoPara,
           canal: canal,
-          notas: contexto, // Usamos 'notas' como en el SQL
+          notas: contexto, 
           link_meet: linkMeet,
           sdr_name: sdrName
         }]);
