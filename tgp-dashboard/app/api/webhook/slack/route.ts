@@ -45,36 +45,51 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // 1. Trigger: Solo procesar si el texto contiene "SDR: Nicolas Arias"
+      // 1. Trigger
       if (event.type === 'message' && !event.bot_id && event.text && event.text.includes('SDR: Nicolas Arias')) {
         const texto = event.text;
 
-        // 2. Emoji Feedback: Cohete (🚀)
+        // 2. Emoji Feedback
         await addSlackReaction(event.channel, event.ts, 'rocket');
 
-        // 3. Regex de Precisión (Formato Edenred)
-        const nombreMatch = texto.match(/Nombre Contacto:\s*(.+)/i);
-        const empresaMatch = texto.match(/Empresa:\s*(.+)/i);
-        const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
-        const diaHoraMatch = texto.match(/D[ií]a y Hora:\s*(.+)/i);
-        const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+)/i);
-        const sdrMatch = texto.match(/SDR:\s*(.+)/i);
+        // 3. Parser adaptativo para formato full (basado en imagen e instrucciones)
+        const extract = (regex: RegExp) => {
+          const match = texto.match(regex);
+          return match ? match[1].trim() : null;
+        };
 
-        const nombre = nombreMatch ? nombreMatch[1].trim() : 'Prospecto Sin Nombre';
-        const empresa = empresaMatch ? empresaMatch[1].trim() : 'Desconocida';
-        let telefono = telMatch ? telMatch[1].trim() : '';
-        const diaHoraStr = diaHoraMatch ? diaHoraMatch[1].trim() : '';
-        const contexto = contextoMatch ? contextoMatch[1].trim() : '';
-        // Extracción del SDR de forma dinámica
-        const sdrName = sdrMatch ? sdrMatch[1].trim() : 'Nicolas Arias';
+        // El título suele ser la primera línea sin "clave: valor"
+        const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const titulo = (lineas.length > 0 && !lineas[0].includes(':')) ? lineas[0] : 'Reunión Agendada';
 
-        // Formato Chileno (Elimina +, espacios y letras, asume prefijo 569 si no tiene)
-        telefono = telefono.replace(/\D/g, ''); 
-        if (telefono.length === 8) telefono = '569' + telefono;
-        else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
-        else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
+        const emailOrigen = extract(/Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/i);
+        const empresa = extract(/Empresa:\s*(.+)/i);
+        const nombre = extract(/Nombre Contacto:\s*(.+)/i) || 'Prospecto Sin Nombre';
+        const correosContacto = extract(/Correos Contacto:\s*(.+)/i);
+        const cargo = extract(/Cargo:\s*(.+)/i);
+        let telefono = extract(/Tel[eé]fono:\s*(.+)/i);
+        const diaHoraStr = extract(/D[ií]a y Hora:\s*(.+)/i) || '';
+        const agendadoPara = extract(/Agendado para:\s*(.+)/i);
+        const canal = extract(/Canal:\s*(.+)/i);
+        const sdrName = extract(/SDR:\s*(.+)/i) || 'Nicolas Arias';
+        
+        // Contexto, por si viene en algún momento
+        const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nSDR:|\n$|$)/i);
+        const contexto = contextoMatch ? contextoMatch[1].trim() : null;
 
-        // Extraer Date y Time
+        // Limpieza Teléfono (Si es N/A se guarda vacío)
+        if (telefono && telefono.toUpperCase() === 'N/A') {
+          telefono = '';
+        } else if (telefono) {
+          telefono = telefono.replace(/\D/g, ''); 
+          if (telefono.length === 8) telefono = '569' + telefono;
+          else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
+          else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
+        } else {
+          telefono = '';
+        }
+
+        // Extracción Date y Time
         let fecha = '';
         let hora = '10:00:00';
         
@@ -82,7 +97,7 @@ export async function POST(req: Request) {
         if (dateParts) {
           fecha = dateParts[1];
           hora = dateParts[2];
-          if (hora.length === 5) hora += ':00'; // Supabase TIME espera HH:mm:ss
+          if (hora.length === 5) hora += ':00'; 
         } else {
           const partes = diaHoraStr.split(/\s+/);
           if (partes.length >= 2) {
@@ -100,30 +115,36 @@ export async function POST(req: Request) {
           fecha = new Date().toISOString().split('T')[0];
         }
 
-        const notasFinales = contexto;
-
-        // 4. Database: Insertar en la tabla 'reuniones' asegurando mapeo a sdr_name
+        // 4. Inserción a Supabase con todos los campos nuevos
         const { error } = await supabase.from('reuniones').insert([{
-          nombre_prospecto: nombre,
+          titulo_reunion: titulo,
+          email_origen: emailOrigen,
           empresa: empresa,
+          nombre_prospecto: nombre,
+          correos_contacto: correosContacto,
+          cargo: cargo,
           telefono: telefono,
           fecha_reunion: fecha,
           hora_reunion: hora,
-          notas: notasFinales,
-          estado: 'Pendiente',
-          sdr_name: sdrName // <-- NUEVO CAMPO AÑADIDO
+          agendado_para: agendadoPara,
+          canal: canal,
+          contexto: contexto,
+          sdr_name: sdrName,
+          
+          estado_post_llamada: 'pendiente',
+          estado_24h: 'pendiente',
+          estado_1h: 'pendiente'
         }]);
 
         if (error) {
           console.error('Error insertando en Supabase:', error);
           await sendSlackConfirmation(
             event.channel, 
-            `❌ Error al guardar a ${nombre} de ${empresa}. Error: ${error.message}`, 
+            `❌ Error al guardar a ${nombre} de ${empresa || 'Empresa'}. Error: ${error.message}`, 
             event.ts
           );
         } else {
-          console.log(`✅ Reunión Edenred creada para: ${nombre}`);
-          // 5. Thread Reply: Mensaje final solicitado
+          console.log(`✅ Reunión creada para: ${nombre}`);
           await sendSlackConfirmation(
             event.channel, 
             `✅ ¡Listo! La reunión con ${nombre} ya está en el Dashboard.`,
