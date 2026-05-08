@@ -6,8 +6,10 @@ import { useToast } from '@/hooks/useToast'
 import { FilterBar } from './FilterBar'
 import { MeetingCard } from './MeetingCard'
 import { AddMeetingModal } from './AddMeetingModal'
+import { ImportExcelModal } from './ImportExcelModal'
 import { ToastContainer } from './ToastContainer'
 import type { TipoMensaje } from '@/lib/types'
+import { FileSpreadsheet } from 'lucide-react'
 
 export function Dashboard() {
   const {
@@ -18,10 +20,12 @@ export function Dashboard() {
     setFiltro,
     actualizarEstadoMensaje,
     eliminarReunion,
+    refetch,
   } = useReuniones()
 
   const { toasts, addToast } = useToast()
   const [modalOpen, setModalOpen] = useState(false)
+  const [excelModalOpen, setExcelModalOpen] = useState(false)
 
   const handleSentMessage = async (reunionId: string, tipo: TipoMensaje) => {
     try {
@@ -42,8 +46,7 @@ export function Dashboard() {
   }
 
   const handleAddReunion = async (data: any) => {
-    // Implementación mínima para manual, aunque el flujo es vía Slack
-    addToast('⚠️ Usa el canal de Slack para agregar reuniones con el formato Edenred.', 'error')
+    addToast('⚠️ Usa el canal de Slack o el importador de Excel para agregar reuniones de forma segura.', 'error')
     setModalOpen(false)
   }
 
@@ -57,15 +60,45 @@ export function Dashboard() {
     <div className="app-wrapper">
       {/* HEADER NATIVO */}
       <header className="app-header">
-        <div className="app-header-inner">
-          <div className="app-logo">
+        <div className="app-header-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <div className="app-logo" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span className="app-logo-title">SDR TRACKER</span>
+            {pendienteCount > 0 && (
+              <div className="stat-pill">
+                {pendienteCount} pendientes
+              </div>
+            )}
           </div>
-          {pendienteCount > 0 && (
-            <div className="stat-pill">
-              {pendienteCount} pendientes
-            </div>
-          )}
+          
+          <button
+            onClick={() => setExcelModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--bg-elevated)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              padding: '6px 12px',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--accent-green)';
+              e.currentTarget.style.boxShadow = '0 0 10px var(--accent-green-glow)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--border-default)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+            }}
+          >
+            <FileSpreadsheet style={{ color: 'var(--accent-green)', width: '15px', height: '15px' }} />
+            <span>Importar Excel</span>
+          </button>
         </div>
       </header>
 
@@ -119,6 +152,15 @@ export function Dashboard() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onSubmit={handleAddReunion}
+      />
+
+      {/* Modal para Importación de Excel */}
+      <ImportExcelModal
+        open={excelModalOpen}
+        onClose={() => setExcelModalOpen(false)}
+        onSuccess={(msg) => addToast(msg, 'success')}
+        onError={(msg) => addToast(msg, 'error')}
+        onRefetch={refetch}
       />
 
       <ToastContainer toasts={toasts} />
