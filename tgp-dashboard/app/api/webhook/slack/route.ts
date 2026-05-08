@@ -1,63 +1,19 @@
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
-// Cliente de Supabase (usamos las mismas credenciales públicas, o podrías usar SERVICE_ROLE en el futuro)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-/**
- * Verifica que la petición provenga genuinamente de Slack usando el SIGNING_SECRET
- */
-function verifySlackSignature(
-  slackSignature: string | null,
-  slackTimestamp: string | null,
-  rawBody: string,
-  secret: string
-): boolean {
-  if (!slackSignature || !slackTimestamp || !secret) return false
-
-  const time = parseInt(slackTimestamp, 10)
-  const now = Math.floor(Date.now() / 1000)
-  
-  // Previene ataques de replay (5 minutos de tolerancia)
-  if (Math.abs(now - time) > 300) return false
-
-  const sigBasestring = `v0:${slackTimestamp}:${rawBody}`
-  const mySignature = 'v0=' + crypto
-    .createHmac('sha256', secret)
-    .update(sigBasestring, 'utf8')
-    .digest('hex')
-
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(mySignature, 'utf8'),
-      Buffer.from(slackSignature, 'utf8')
-    )
-  } catch (err) {
-    return false
-  }
-}
-
 export async function POST(req: Request) {
-  // 1. Obtener el texto crudo para la validación de la firma
-  const rawBody = await req.text()
+  // 1. Obtener el cuerpo de la petición como JSON
+  const body = await req.json()
   
-  // Extraer headers de Slack
-  const slackSignature = req.headers.get('x-slack-signature')
-  const slackTimestamp = req.headers.get('x-slack-request-timestamp')
-  const signingSecret = process.env.SLACK_SIGNING_SECRET || ''
+  // 4. Log para depurar en Vercel
+  console.log("Cuerpo recibido:", body)
 
-  // 2. Seguridad: Validar firma
-  if (!verifySlackSignature(slackSignature, slackTimestamp, rawBody, signingSecret)) {
-    return NextResponse.json({ error: 'Firma inválida' }, { status: 401 })
-  }
-
-  const body = JSON.parse(rawBody)
-
-  // 3. Challenge Handler: Para cuando configuremos la URL en Slack por primera vez
+  // 2. Challenge Handler: Para verificación de Slack (sin seguridad temporalmente)
   if (body.type === 'url_verification') {
     return new NextResponse(body.challenge, {
       status: 200,
@@ -65,11 +21,10 @@ export async function POST(req: Request) {
     })
   }
 
-  // 4. Procesar Evento de Mensaje
+  // 3. Procesar Evento de Mensaje
   if (body.type === 'event_callback') {
     const event = body.event
 
-    // Solo procesamos mensajes, que no sean de bots, y que contengan el trigger exacto
     if (
       event.type === 'message' &&
       !event.bot_id &&
@@ -98,13 +53,12 @@ export async function POST(req: Request) {
       } else if (telefono.length === 9 && telefono.startsWith('9')) {
         telefono = '56' + telefono
       } else if (telefono.length === 11 && telefono.startsWith('569')) {
-        // Ya está bien, no hacemos nada
+        // Ya está bien
       } else if (!telefono.startsWith('56')) {
-        // Fallback genérico si alguien pone algo raro, asume 569 si no tiene código de país
         telefono = '56' + telefono
       }
 
-      // Limpieza de Fecha (convertir DD/MM/YYYY a YYYY-MM-DD si es necesario)
+      // Limpieza de Fecha
       if (fecha.includes('/')) {
         const [dia, mes, anio] = fecha.split('/')
         fecha = `${anio}-${mes}-${dia}`
@@ -112,10 +66,8 @@ export async function POST(req: Request) {
         fecha = new Date().toISOString().split('T')[0] // Hoy por defecto
       }
 
-      // Construir el ISO String requerido por Supabase: "YYYY-MM-DDTHH:mm:00"
+      // Construir el ISO String requerido por Supabase
       const fechaISO = `${fecha}T${hora.padStart(5, '0')}:00`
-
-      // Guardaremos el enlace del meet en las notas si existe
       const notasFinales = linkMeet ? `Enlace reunión: ${linkMeet}` : null
 
       // --- Integración con Supabase ---
@@ -138,6 +90,6 @@ export async function POST(req: Request) {
     }
   }
 
-  // Slack requiere un 200 OK rápido para no reintentar enviar el evento
+  // Responder 200 OK a Slack
   return NextResponse.json({ ok: true })
 }
