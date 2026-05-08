@@ -6,50 +6,28 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-/**
- * Añade una reacción (emoji) a un mensaje específico en Slack
- */
 async function addSlackReaction(channelId: string, timestamp: string, emoji: string) {
   const token = process.env.SLACK_BOT_TOKEN;
   if (!token) return;
-  
   try {
     await fetch('https://slack.com/api/reactions.add', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        channel: channelId,
-        name: emoji,
-        timestamp: timestamp
-      })
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ channel: channelId, name: emoji, timestamp: timestamp })
     });
   } catch (error) {
     console.error("Error añadiendo reacción en Slack:", error);
   }
 }
 
-/**
- * Envía un mensaje a Slack (opcionalmente en un hilo)
- */
 async function sendSlackConfirmation(channelId: string, text: string, threadTs?: string) {
   const token = process.env.SLACK_BOT_TOKEN;
   if (!token) return;
-  
   try {
     await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        channel: channelId,
-        text: text,
-        thread_ts: threadTs
-      })
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ channel: channelId, text: text, thread_ts: threadTs })
     });
   } catch (error) {
     console.error("Error enviando mensaje a Slack:", error);
@@ -60,31 +38,20 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // 1. Challenge Handler
     if (body.type === 'url_verification') {
-      return new Response(body.challenge, {
-        status: 200,
-        headers: { 'Content-Type': 'text/plain' }
-      });
+      return new Response(body.challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
 
-    // 2. Procesamiento de Eventos
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Filtro principal: Solo SDR Nicolas Arias
-      if (
-        event.type === 'message' &&
-        !event.bot_id &&
-        event.text &&
-        event.text.includes('SDR: Nicolas Arias')
-      ) {
+      if (event.type === 'message' && !event.bot_id && event.text && event.text.includes('SDR: Nicolas Arias')) {
         const texto = event.text;
 
-        // Feedback Visual Inmediato (🚀 rocket emoji)
-        await addSlackReaction(event.channel, event.ts, 'rocket');
+        // Feedback Visual Inmediato (✅)
+        await addSlackReaction(event.channel, event.ts, 'white_check_mark');
 
-        // --- Lógica del Parser Especial (Edenred) ---
+        // Regex Parser Edenred
         const nombreMatch = texto.match(/Nombre Contacto:\s*(.+)/i);
         const empresaMatch = texto.match(/Empresa:\s*(.+)/i);
         const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
@@ -97,29 +64,26 @@ export async function POST(req: Request) {
         const diaHoraStr = diaHoraMatch ? diaHoraMatch[1].trim() : '';
         const contexto = contextoMatch ? contextoMatch[1].trim() : '';
 
-        // Limpieza Teléfono Chileno (569)
+        // Formato Chileno
         telefono = telefono.replace(/\D/g, ''); 
-        if (telefono.length === 8) {
-          telefono = '569' + telefono;
-        } else if (telefono.length === 9 && telefono.startsWith('9')) {
-          telefono = '56' + telefono;
-        } else if (!telefono.startsWith('56') && telefono.length > 0) {
-          telefono = '56' + telefono;
-        }
+        if (telefono.length === 8) telefono = '569' + telefono;
+        else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
+        else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
 
-        // Extracción de Fecha (YYYY-MM-DD) y Hora (HH:mm)
+        // Extraer Date (YYYY-MM-DD) y Time (HH:mm:ss)
         let fecha = '';
-        let hora = '10:00';
+        let hora = '10:00:00';
         
-        const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2})/);
+        const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(:\d{2})?)/);
         if (dateParts) {
           fecha = dateParts[1];
           hora = dateParts[2];
+          if (hora.length === 5) hora += ':00'; // Supabase TIME espera HH:mm:ss
         } else {
           const partes = diaHoraStr.split(/\s+/);
           if (partes.length >= 2) {
             fecha = partes[0];
-            hora = partes[1].substring(0, 5);
+            hora = partes[1].substring(0, 5) + ':00';
           } else if (partes.length === 1) {
             fecha = partes[0];
           }
@@ -132,26 +96,24 @@ export async function POST(req: Request) {
           fecha = new Date().toISOString().split('T')[0];
         }
 
-        const fechaISO = `${fecha}T${hora.padStart(5, '0')}:00`;
-        const notasFinales = `Empresa: ${empresa} | Contexto: ${contexto}`;
+        const notasFinales = contexto; // Empresa ya tiene columna propia
 
-        // --- Inserción en Supabase ---
+        // Insertar en Supabase (con los campos EXACTOS solicitados)
         const { error } = await supabase.from('reuniones').insert([{
           nombre_prospecto: nombre,
+          empresa: empresa,
           telefono: telefono,
-          fecha_reunion: fechaISO,
+          fecha_reunion: fecha,
           hora_reunion: hora,
           notas: notasFinales,
-          estado_post_llamada: 'pendiente',
-          estado_24h: 'pendiente',
-          estado_1h: 'pendiente',
+          estado: 'Pendiente'
         }]);
 
         if (error) {
           console.error('Error insertando en Supabase:', error);
           await sendSlackConfirmation(
             event.channel, 
-            `❌ Error guardando a *${nombre}* de ${empresa}. Revisa los logs.`, 
+            `❌ Error al guardar a ${nombre} de ${empresa}. Error: ${error.message}`, 
             event.ts
           );
         } else {
