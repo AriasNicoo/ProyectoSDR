@@ -11,10 +11,12 @@ export function getRangoFecha(filtro: FiltroFecha): { desde: string; hasta: stri
 
   let hoy = new Date()
   
-  // Si es Sábado (6) o Domingo (0), adelantamos la referencia para mostrar la PRÓXIMA semana
+  // Si es Sábado (6), Domingo (0), o Viernes (5) después de las 15:00 hrs, adelantamos la referencia para mostrar la PRÓXIMA semana
   const diaSemana = hoy.getDay()
-  if (diaSemana === 6 || diaSemana === 0) {
-    hoy = addDays(hoy, 2)
+  const horaActual = hoy.getHours()
+  if (diaSemana === 6 || diaSemana === 0 || (diaSemana === 5 && horaActual >= 15)) {
+    const diasParaAdelantar = diaSemana === 5 ? 3 : 2
+    hoy = addDays(hoy, diasParaAdelantar)
   }
 
   const lunesSemanaActual = startOfWeek(hoy, { weekStartsOn: 1 })
