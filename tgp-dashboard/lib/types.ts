@@ -11,14 +11,14 @@ export interface Reunion {
   
   // Prospecto
   empresa: string | null
-  nombre_prospecto: string
+  nombre_prospecto: string | null
   correos_contacto: string | null
   cargo: string | null
   telefono: string | null
   
   // Tiempo
-  fecha_reunion: string       // "YYYY-MM-DD"
-  hora_reunion: string        // "HH:mm:ss"
+  fecha_reunion: string | null      // "YYYY-MM-DD"
+  hora_reunion: string | null       // "HH:mm:ss"
   
   // Origen
   email_origen: string | null
