@@ -60,7 +60,7 @@ export async function POST(req: Request) {
 
         const emailOrigen = extract(/Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/i);
         const empresa = extract(/Empresa:\s*(.+)/i);
-        const nombre = extract(/Nombre Contacto:\s*(.+)/i);
+        const nombre = extract(/Nombre Contacto:\s*(.+)/i) || 'Prospecto';
         const correosContacto = extract(/Correos Contacto:\s*(.+)/i);
         const cargo = extract(/Cargo:\s*(.+)/i);
         let telefono = extract(/Tel[eé]fono:\s*(.+)/i);
@@ -83,8 +83,8 @@ export async function POST(req: Request) {
           else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
         }
 
-        let fecha = null;
-        let hora = null;
+        let fecha = new Date().toISOString().split('T')[0];
+        let hora = '10:00:00';
         const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(:\d{2})?)/);
         if (dateParts) {
           fecha = dateParts[1];
@@ -102,8 +102,8 @@ export async function POST(req: Request) {
           const [dia, mes, anio] = fecha.split('/');
           fecha = `${anio}-${mes}-${dia}`;
         } else if (!fecha) {
-          fecha = null;
-          hora = null;
+          fecha = new Date().toISOString().split('T')[0];
+          hora = '10:00:00';
         }
 
         const { error } = await supabase.from('reuniones').insert([{
