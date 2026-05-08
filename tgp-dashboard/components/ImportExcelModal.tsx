@@ -174,27 +174,34 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           return
         }
 
-        const headers = rawRows[0].map((h: any) => h?.toString().trim().toLowerCase() || '')
-
-        // Encontrar índices de columnas por nombre
-        const getIdx = (keywords: string[]) => {
-          return headers.findIndex(h => keywords.some(keyword => h.includes(keyword)))
+        // Limpiar headers de forma densa y segura
+        const headers: string[] = []
+        const headerRow = rawRows[0] || []
+        for (let colIdx = 0; colIdx < headerRow.length; colIdx++) {
+          const val = headerRow[colIdx]
+          headers.push(val !== null && val !== undefined ? val.toString().trim().toLowerCase() : '')
         }
 
-        const fCreacionIdx = getIdx(['creac', 'fecha creacion'])
-        const clienteIdx = getIdx(['cliente'])
-        const ejecutivosIdx = getIdx(['ejecut'])
-        const paisIdx = getIdx(['país', 'pais'])
-        const fechaIdx = headers.indexOf('fecha') !== -1 ? headers.indexOf('fecha') : getIdx(['fecha'])
-        const empresaIdx = getIdx(['empresa'])
-        const nombreIdx = getIdx(['nombre con', 'nombre contacto', 'contacto', 'prospecto'])
-        const emailIdx = getIdx(['email', 'correo'])
-        const invitadosIdx = getIdx(['invitados'])
-        const telefonoIdx = getIdx(['teléfono', 'telefono', 'fono', 'celular'])
-        const rolIdx = getIdx(['rol contacto', 'rol', 'cargo'])
-        const canalIdx = getIdx(['canal'])
-        const podIdx = getIdx(['pod'])
-        const sdrIdx = getIdx(['sdr'])
+        // Helper ultra-seguro para buscar índice de columna por múltiples keywords
+        const getColumnIndex = (keywords: string[]) => {
+          return headers.findIndex(h => h && keywords.some(kw => h.toLowerCase().includes(kw.toLowerCase())))
+        }
+
+        // Obtener índices exactos
+        const idxCreacion = getColumnIndex(['creac'])
+        const idxCliente = getColumnIndex(['cliente'])
+        const idxEjecutivos = getColumnIndex(['ejecut'])
+        const idxPais = getColumnIndex(['paí', 'pais'])
+        const idxFecha = headers.indexOf('fecha') !== -1 ? headers.indexOf('fecha') : getColumnIndex(['fecha'])
+        const idxEmpresa = getColumnIndex(['empresa'])
+        const idxNombre = getColumnIndex(['nombre con', 'nombre contacto', 'contacto', 'prospecto'])
+        const idxEmail = getColumnIndex(['email contac', 'email', 'correo'])
+        const idxInvitados = getColumnIndex(['invitado'])
+        const idxTelefono = getColumnIndex(['teléfono cor', 'teléfono', 'telefono', 'fono', 'celular'])
+        const idxRol = getColumnIndex(['rol contacto', 'rol', 'cargo'])
+        const idxCanal = getColumnIndex(['canal'])
+        const idxPod = getColumnIndex(['pod'])
+        const idxSdr = getColumnIndex(['sdr'])
 
         const meetings: ParsedMeeting[] = []
 
@@ -202,23 +209,28 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           const row = rawRows[i]
           if (!row || row.length === 0) continue
 
-          // Leer valores crudos
-          let rawNombre = row[nombreIdx] || ''
-          let rawEmpresa = row[empresaIdx] || ''
-          let rawFecha = row[fechaIdx] || ''
-          let rawEmail = row[emailIdx] || ''
-          let rawTelefono = row[telefonoIdx] || ''
-          let rawCargo = row[rolIdx] || ''
-          let rawCanal = row[canalIdx] || ''
-          let rawSdr = row[sdrIdx] || ''
-          let rawPod = row[podIdx] || ''
-          let rawCliente = row[clienteIdx] || ''
-          let rawEjecutivos = row[ejecutivosIdx] || ''
-          let rawPais = row[paisIdx] || ''
-          let rawInvitados = row[invitadosIdx] || ''
+          // Helper ultra-seguro para obtener el valor de una celda por índice como string limpio
+          const getVal = (idx: number): string => {
+            if (idx === -1 || idx >= row.length) return ''
+            const val = row[idx]
+            return val !== null && val !== undefined ? val.toString().trim() : ''
+          }
+
+          let rawNombre = getVal(idxNombre)
+          let rawEmpresa = getVal(idxEmpresa)
+          let rawFecha = getVal(idxFecha)
+          let rawEmail = getVal(idxEmail)
+          let rawTelefono = getVal(idxTelefono)
+          let rawCargo = getVal(idxRol)
+          let rawCanal = getVal(idxCanal)
+          let rawSdr = getVal(idxSdr)
+          let rawPod = getVal(idxPod)
+          let rawCliente = getVal(idxCliente)
+          let rawEjecutivos = getVal(idxEjecutivos)
+          let rawPais = getVal(idxPais)
+          let rawInvitados = getVal(idxInvitados)
 
           // --- AUTO-HEALING/INTELIGENCIA CONTRA SHIFTING (Desplazamiento de columnas) ---
-          // Limpiamos los rowValues garantizando que sean strings y no haya arrays dispersos con elementos vacíos (holes)
           const rowValues: string[] = []
           for (let colIdx = 0; colIdx < row.length; colIdx++) {
             const cellVal = row[colIdx]
@@ -258,7 +270,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           }
 
           // Formateo final de campos
-          const nombreProspecto = rawNombre ? rawNombre.toString().trim() : 'Prospecto'
+          const nombreProspecto = rawNombre || 'Prospecto'
           const { fecha, hora } = parseDateAndTime(rawFecha)
           const telefonoFinal = cleanAndFormatPhone(rawTelefono)
 
@@ -269,9 +281,8 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           if (rawPais) metaNotas.push(`País: ${rawPais}`)
           if (rawPod) metaNotas.push(`Pod: ${rawPod}`)
           
-          const rawInvitadosStr = rawInvitados ? rawInvitados.toString().trim() : ''
-          if (rawInvitadosStr && !rawInvitadosStr.toUpperCase().includes('E+')) {
-            metaNotas.push(`Invitados: ${rawInvitadosStr}`)
+          if (rawInvitados && !rawInvitados.toUpperCase().includes('E+')) {
+            metaNotas.push(`Invitados: ${rawInvitados}`)
           }
           
           const notasMetaStr = metaNotas.length > 0 ? `[${metaNotas.join(' | ')}]` : ''
@@ -279,18 +290,18 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
 
           meetings.push({
             titulo_reunion: rawEmpresa ? `Reunión con ${rawEmpresa}` : 'Reunión Agendada',
-            email_origen: rawEmail ? rawEmail.toString().trim() : null,
-            empresa: rawEmpresa ? rawEmpresa.toString().trim() : 'Sin Empresa',
+            email_origen: rawEmail || null,
+            empresa: rawEmpresa || 'Sin Empresa',
             nombre_prospecto: nombreProspecto,
-            correos_contacto: rawEmail ? rawEmail.toString().trim() : null,
-            cargo: rawCargo ? rawCargo.toString().trim() : null,
+            correos_contacto: rawEmail || null,
+            cargo: rawCargo || null,
             telefono: telefonoFinal,
             fecha_reunion: fecha,
             hora_reunion: hora,
-            agendado_para: rawEjecutivos ? rawEjecutivos.toString().trim() : null,
-            canal: rawCanal ? rawCanal.toString().trim().toUpperCase() : 'CALL',
+            agendado_para: rawEjecutivos || null,
+            canal: rawCanal ? rawCanal.toUpperCase() : 'CALL',
             notas: notasFinal,
-            sdr_name: rawSdr ? rawSdr.toString().trim() : 'Nicolas Arias',
+            sdr_name: rawSdr || 'Nicolas Arias',
             link_meet: null
           })
         }
