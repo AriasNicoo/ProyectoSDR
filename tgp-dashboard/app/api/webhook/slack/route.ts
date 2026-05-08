@@ -58,12 +58,15 @@ export async function POST(req: Request) {
         const telMatch = texto.match(/Tel[eé]fono:\s*(.+)/i);
         const diaHoraMatch = texto.match(/D[ií]a y Hora:\s*(.+)/i);
         const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+)/i);
+        const sdrMatch = texto.match(/SDR:\s*(.+)/i);
 
         const nombre = nombreMatch ? nombreMatch[1].trim() : 'Prospecto Sin Nombre';
         const empresa = empresaMatch ? empresaMatch[1].trim() : 'Desconocida';
         let telefono = telMatch ? telMatch[1].trim() : '';
         const diaHoraStr = diaHoraMatch ? diaHoraMatch[1].trim() : '';
         const contexto = contextoMatch ? contextoMatch[1].trim() : '';
+        // Extracción del SDR de forma dinámica
+        const sdrName = sdrMatch ? sdrMatch[1].trim() : 'Nicolas Arias';
 
         // Formato Chileno (Elimina +, espacios y letras, asume prefijo 569 si no tiene)
         telefono = telefono.replace(/\D/g, ''); 
@@ -99,7 +102,7 @@ export async function POST(req: Request) {
 
         const notasFinales = contexto;
 
-        // 4. Database: Insertar en la tabla 'reuniones'
+        // 4. Database: Insertar en la tabla 'reuniones' asegurando mapeo a sdr_name
         const { error } = await supabase.from('reuniones').insert([{
           nombre_prospecto: nombre,
           empresa: empresa,
@@ -107,7 +110,8 @@ export async function POST(req: Request) {
           fecha_reunion: fecha,
           hora_reunion: hora,
           notas: notasFinales,
-          estado: 'Pendiente'
+          estado: 'Pendiente',
+          sdr_name: sdrName // <-- NUEVO CAMPO AÑADIDO
         }]);
 
         if (error) {
@@ -122,7 +126,7 @@ export async function POST(req: Request) {
           // 5. Thread Reply: Mensaje final solicitado
           await sendSlackConfirmation(
             event.channel, 
-            `✅ Nicolas, agendé a ${nombre} de ${empresa} en tu Dashboard. ¡A darle!`,
+            `✅ ¡Listo! La reunión con ${nombre} ya está en el Dashboard.`,
             event.ts
           );
         }
