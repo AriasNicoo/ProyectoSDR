@@ -80,9 +80,10 @@ export function buildWhatsAppMessage(
  * Construye la URL de wa.me para abrir WhatsApp directamente.
  */
 export function buildWhatsAppURL(telefono: string, mensaje: string): string {
-  // Limpia el teléfono: solo dígitos
+  // Limpia el teléfono de nuevo por seguridad: solo dígitos
   const telefonoLimpio = (telefono || '').replace(/\D/g, '')
-  return `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`
+  // Usamos api.whatsapp.com que es más estable en desktop y mobile
+  return `https://api.whatsapp.com/send?phone=${telefonoLimpio}&text=${encodeURIComponent(mensaje)}`
 }
 
 /**
