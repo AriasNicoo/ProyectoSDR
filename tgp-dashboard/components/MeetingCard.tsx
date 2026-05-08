@@ -56,6 +56,12 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
           <span className="detail-value">{reunion.telefono || 'N/A'}</span>
         </div>
         <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+          <span className="detail-label">Fecha de la Reunión</span>
+          <span className="detail-value" style={{ fontWeight: 600, color: 'var(--accent-blue)' }}>
+            📅 {formatearFechaReunion(reunion.fecha_reunion, reunion.hora_reunion)}
+          </span>
+        </div>
+        <div className="detail-item" style={{ gridColumn: 'span 2' }}>
           <span className="detail-label">Link de Reunión</span>
           {reunion.link_meet ? (
             <a href={reunion.link_meet} target="_blank" rel="noopener noreferrer" className="detail-value" style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}>
