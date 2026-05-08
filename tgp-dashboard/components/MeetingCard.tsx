@@ -15,6 +15,15 @@ const TIPOS_MENSAJE: TipoMensaje[] = ['post_llamada', '24h', '1h']
 export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
   const hasPhone = !!reunion.telefono && reunion.telefono.length > 5
 
+  // Extraer el cliente de las notas si viene con el formato [Cliente: Nombre | ...]
+  let clienteName = 'N/A'
+  if (reunion.notas) {
+    const match = reunion.notas.match(/Cliente:\s*([^|\]]+)/i)
+    if (match) {
+      clienteName = match[1].trim()
+    }
+  }
+
   return (
     <article className="meeting-card" aria-label={`Reunión con ${reunion.nombre_prospecto}`}>
       {/* Header: Nombre, Empresa y Hora */}
@@ -31,12 +40,16 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
       {/* Detalles Secundarios */}
       <div className="card-details">
         <div className="detail-item">
-          <span className="detail-label">Cargo</span>
-          <span className="detail-value">{reunion.cargo || 'N/A'}</span>
+          <span className="detail-label">Cliente</span>
+          <span className="detail-value" style={{ fontWeight: 600, color: 'var(--accent-green)' }}>{clienteName}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">SDR</span>
           <span className="detail-value">{reunion.sdr_name || 'N/A'}</span>
+        </div>
+        <div className="detail-item">
+          <span className="detail-label">Cargo</span>
+          <span className="detail-value">{reunion.cargo || 'N/A'}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">Teléfono</span>

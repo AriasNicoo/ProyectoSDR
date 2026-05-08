@@ -69,10 +69,16 @@ export async function POST(req: Request) {
         const canal = extract(/Canal:\s*(.+)/i);
         const sdrName = extract(/SDR:\s*(.+)/i);
         const linkMeet = extract(/Link a Google Meet:\s*(https?:\/\/\S+)/i);
+        const cliente = extract(/Cliente:\s*(.+)/i);
         
         // Contexto multi-línea
         const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nLink a Google Meet:|\nSDR:|\n$|$)/i);
         const contexto = contextoMatch ? contextoMatch[1].trim() : null;
+
+        let notasFinal = contexto;
+        if (cliente) {
+          notasFinal = notasFinal ? `[Cliente: ${cliente}] ${notasFinal}` : `[Cliente: ${cliente}]`;
+        }
 
         if (telefono && telefono.toUpperCase() === 'N/A') {
           telefono = '';
@@ -140,7 +146,7 @@ export async function POST(req: Request) {
           hora_reunion: hora,
           agendado_para: agendadoPara,
           canal: canal,
-          notas: contexto, 
+          notas: notasFinal, 
           link_meet: linkMeet,
           sdr_name: sdrName
         }]);

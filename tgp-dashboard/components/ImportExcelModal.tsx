@@ -186,9 +186,15 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
       const canal = extract(/Canal:\s*(.+)/i)
       const sdrName = extract(/SDR:\s*(.+)/i)
       const linkMeet = extract(/Link a Google Meet:\s*(https?:\/\/\S+)/i)
+      const cliente = extract(/Cliente:\s*(.+)/i)
       
       const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nLink a Google Meet:|\nSDR:|\n$|$)/i)
       const contexto = contextoMatch ? contextoMatch[1].trim() : null
+
+      let notasFinal = contexto
+      if (cliente) {
+        notasFinal = notasFinal ? `[Cliente: ${cliente}] ${notasFinal}` : `[Cliente: ${cliente}]`
+      }
 
       const telefonoFinal = cleanAndFormatPhone(telefono)
 
@@ -224,7 +230,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         hora_reunion: hora,
         agendado_para: agendadoPara,
         canal: canal ? canal.toUpperCase() : 'CALL',
-        notas: contexto,
+        notas: notasFinal,
         sdr_name: sdrName || 'Nicolas Arias',
         link_meet: linkMeet
       }
