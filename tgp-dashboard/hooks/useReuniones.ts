@@ -48,16 +48,47 @@ export function useReuniones(): UseReunionesReturn {
     setError(null)
 
     try {
-      const hoy = new Date().toISOString().split('T')[0]
-      
+      const hoyObj = new Date()
+      const hoyStr = hoyObj.toISOString().split('T')[0]
+      const diaSemana = hoyObj.getDay()
+      let adelantarSemana = false
+
+      if (diaSemana === 5) { // Hoy es Viernes
+        // Buscamos la última reunión de hoy viernes
+        const { data: ultReunion } = await supabase
+          .from('reuniones')
+          .select('hora_reunion')
+          .eq('fecha_reunion', hoyStr)
+          .order('hora_reunion', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (ultReunion) {
+          const [h, m] = ultReunion.hora_reunion.split(':').map(Number)
+          const horaUltimaReunion = new Date()
+          horaUltimaReunion.setHours(h, m, 0, 0)
+          
+          if (new Date() > horaUltimaReunion) {
+            adelantarSemana = true
+          }
+        } else {
+          // Fallback por defecto si no hay reuniones el viernes: las 18:30 hrs
+          const horaLimite = new Date()
+          horaLimite.setHours(18, 30, 0, 0)
+          if (new Date() > horaLimite) {
+            adelantarSemana = true
+          }
+        }
+      }
+
       let query = supabase
         .from('reuniones')
         .select('*')
-        .gte('fecha_reunion', hoy) // Solo mostrar desde hoy en adelante
+        .gte('fecha_reunion', hoyStr) // Solo mostrar desde hoy en adelante
         .order('fecha_reunion', { ascending: true })
         .order('hora_reunion', { ascending: true })
 
-      const rango = getRangoFecha(filtro)
+      const rango = getRangoFecha(filtro, adelantarSemana)
       if (rango) {
         query = query
           .eq('fecha_reunion', rango.desde)

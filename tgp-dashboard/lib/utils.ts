@@ -6,16 +6,15 @@ import type { Reunion, FiltroFecha } from './types'
  * Devuelve el rango de fechas para filtrar por día de la semana (L-V)
  * Siempre se enfoca en la SEMANA ACTUAL.
  */
-export function getRangoFecha(filtro: FiltroFecha): { desde: string; hasta: string } | null {
+export function getRangoFecha(filtro: FiltroFecha, adelantarSemana: boolean = false): { desde: string; hasta: string } | null {
   if (filtro === 'todos') return null
 
   let hoy = new Date()
   
-  // Si es Sábado (6), Domingo (0), o Viernes (5) después de las 15:00 hrs, adelantamos la referencia para mostrar la PRÓXIMA semana
+  // Si es Sábado (6), Domingo (0) o si se solicita adelantar la semana, adelantamos la referencia
   const diaSemana = hoy.getDay()
-  const horaActual = hoy.getHours()
-  if (diaSemana === 6 || diaSemana === 0 || (diaSemana === 5 && horaActual >= 15)) {
-    const diasParaAdelantar = diaSemana === 5 ? 3 : 2
+  if (diaSemana === 6 || diaSemana === 0 || adelantarSemana) {
+    const diasParaAdelantar = (diaSemana === 5 || adelantarSemana) ? 3 : 2
     hoy = addDays(hoy, diasParaAdelantar)
   }
 
