@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         };
 
         // El título suele ser la primera línea sin "clave: valor"
-        const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        const lineas = texto.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
         const titulo = (lineas.length > 0 && !lineas[0].includes(':')) ? lineas[0] : 'Reunión Agendada';
 
         const emailOrigen = extract(/Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/i);
