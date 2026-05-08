@@ -35,16 +35,18 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
           <span className="detail-value">{reunion.cargo || 'N/A'}</span>
         </div>
         <div className="detail-item">
-          <span className="detail-label">Canal</span>
-          <span className="detail-value">{reunion.canal || 'N/A'}</span>
-        </div>
-        <div className="detail-item">
           <span className="detail-label">SDR</span>
           <span className="detail-value">{reunion.sdr_name || 'N/A'}</span>
         </div>
-        <div className="detail-item">
-          <span className="detail-label">Teléfono</span>
-          <span className="detail-value">{reunion.telefono || 'N/A'}</span>
+        <div className="detail-item" style={{ gridColumn: 'span 2' }}>
+          <span className="detail-label">Link de Reunión</span>
+          {reunion.link_meet ? (
+            <a href={reunion.link_meet} target="_blank" rel="noopener noreferrer" className="detail-value" style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}>
+              📹 Entrar a Meet
+            </a>
+          ) : (
+            <span className="detail-value">No disponible</span>
+          )}
         </div>
       </div>
 

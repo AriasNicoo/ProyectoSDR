@@ -24,14 +24,14 @@ export interface Reunion {
   email_origen: string | null
   agendado_para: string | null
   canal: string | null
-  notas: string | null        // Aquí guardamos el contexto
+  notas: string | null        // Contexto
+  link_meet: string | null    // URL de Google Meet
   
   // Estado de los 3 mensajes de seguimiento
   estado_post_llamada: EstadoMensaje
   estado_24h: EstadoMensaje
   estado_1h: EstadoMensaje
   
-  // Timestamp de última actualización de estados (opcional en el nuevo schema pero útil)
   estados_actualizados_en?: string | null
   ultima_interaccion?: string | null
 }
