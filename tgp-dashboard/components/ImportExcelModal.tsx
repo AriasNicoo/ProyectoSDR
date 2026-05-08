@@ -288,6 +288,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         const idxCanal = getColumnIndex(['canal'])
         const idxPod = getColumnIndex(['pod'])
         const idxSdr = getColumnIndex(['sdr'])
+        const idxLinkMeet = getColumnIndex(['link de goog', 'link', 'meet', 'url'])
 
         const meetings: ParsedMeeting[] = []
 
@@ -315,6 +316,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           let rawEjecutivos = getVal(idxEjecutivos)
           let rawPais = getVal(idxPais)
           let rawInvitados = getVal(idxInvitados)
+          let rawLinkMeet = getVal(idxLinkMeet)
 
           // --- AUTO-HEALING/INTELIGENCIA CONTRA SHIFTING (Desplazamiento de columnas) ---
           const rowValues: string[] = []
@@ -388,7 +390,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
             canal: rawCanal ? rawCanal.toUpperCase() : 'CALL',
             notas: notasFinal,
             sdr_name: rawSdr || 'Nicolas Arias',
-            link_meet: null
+            link_meet: rawLinkMeet || null
           })
         }
 
