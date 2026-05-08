@@ -641,6 +641,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
                       <th style={{ padding: '8px 12px' }}>Empresa</th>
                       <th style={{ padding: '8px 12px' }}>Fecha / Hora</th>
                       <th style={{ padding: '8px 12px' }}>Teléfono</th>
+                      <th style={{ padding: '8px 12px' }}>Link Meet</th>
                       <th style={{ padding: '8px 12px' }}>SDR</th>
                     </tr>
                   </thead>
@@ -651,6 +652,15 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
                         <td style={{ padding: '8px 12px', color: 'var(--accent-blue)' }}>{item.empresa || 'N/A'}</td>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{item.fecha_reunion} {item.hora_reunion.substring(0, 5)}</td>
                         <td style={{ padding: '8px 12px' }}>{item.telefono || <span style={{ color: 'var(--text-muted)' }}>N/A</span>}</td>
+                        <td style={{ padding: '8px 12px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.link_meet ? (
+                            <a href={item.link_meet} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue)', textDecoration: 'underline' }}>
+                              📹 Link
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)' }}>N/A</span>
+                          )}
+                        </td>
                         <td style={{ padding: '8px 12px' }}>{item.sdr_name}</td>
                       </tr>
                     ))}
