@@ -128,7 +128,7 @@ export async function POST(req: Request) {
           hora_reunion: hora,
           agendado_para: agendadoPara,
           canal: canal,
-          contexto: contexto,
+          notas: contexto,
           sdr_name: sdrName,
           
           estado_post_llamada: 'pendiente',

@@ -12,103 +12,65 @@ interface MeetingCardProps {
 
 const TIPOS_MENSAJE: TipoMensaje[] = ['post_llamada', '24h', '1h']
 
-function getEstadoClass(estado: string): string {
-  if (estado === 'enviado') return 'sent'
-  if (estado === 'pendiente') return 'pending'
-  return ''
-}
-
 export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
-  const mensajesEnviados = [
-    reunion.estado_post_llamada,
-    reunion.estado_24h,
-    reunion.estado_1h,
-  ].filter(e => e === 'enviado').length
+  const hasPhone = !!reunion.telefono && reunion.telefono.length > 5
 
   return (
-    <article
-      className="meeting-card"
-      aria-label={`Reunión con ${reunion.nombre_prospecto}`}
-    >
-      <div className="meeting-card-left">
-        {/* Nombre + progress dots */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <article className="meeting-card" aria-label={`Reunión con ${reunion.nombre_prospecto}`}>
+      {/* Header: Nombre, Empresa y Hora */}
+      <div className="card-header">
+        <div className="card-title-group">
+          <span className="meeting-empresa">{reunion.empresa || 'Empresa N/A'}</span>
           <span className="meeting-name">{reunion.nombre_prospecto}</span>
-
-          {/* Mini progress indicator (3 segmentos) */}
-          <div className="progress-track" title={`${mensajesEnviados}/3 mensajes enviados`}>
-            <div className={`progress-segment ${reunion.estado_post_llamada === 'enviado' ? 'sent' : ''}`} />
-            <div className={`progress-segment ${reunion.estado_24h === 'enviado' ? 'sent' : ''}`} />
-            <div className={`progress-segment ${reunion.estado_1h === 'enviado' ? 'sent' : ''}`} />
-          </div>
-
-          {/* Dot indicators individuales */}
-          <div className="msg-status-row">
-            <div
-              className={`msg-dot ${getEstadoClass(reunion.estado_post_llamada)}`}
-              title={`Post-llamada: ${reunion.estado_post_llamada}`}
-            />
-            <div
-              className={`msg-dot ${getEstadoClass(reunion.estado_24h)}`}
-              title={`24h: ${reunion.estado_24h}`}
-            />
-            <div
-              className={`msg-dot ${getEstadoClass(reunion.estado_1h)}`}
-              title={`1h: ${reunion.estado_1h}`}
-            />
-          </div>
         </div>
-
-        {/* Meta info */}
-        <div className="meeting-meta">
-          <span className="meeting-time" title="Fecha y hora de la reunión">
-            🕐 {formatearFechaReunion(reunion.fecha_reunion)}
-            {reunion.hora_reunion && ` · ${reunion.hora_reunion}`}
-          </span>
-          <span className="meeting-phone" title="Teléfono">
-            📱 {reunion.telefono}
-          </span>
-          {reunion.ultima_interaccion && (
-            <span className="last-interaction" title="Última interacción del prospecto">
-              💬 Respondió {new Date(reunion.ultima_interaccion).toLocaleString('es')}
-            </span>
-          )}
+        <div className="meeting-time-pill">
+          {reunion.hora_reunion.substring(0, 5)}
         </div>
-
-        {/* Notas */}
-        {reunion.notas && (
-          <p className="meeting-notes" title={reunion.notas}>
-            {reunion.notas}
-          </p>
-        )}
       </div>
 
-      {/* Actions */}
-      <div className="meeting-card-right">
-        {/* WhatsApp buttons */}
-        <div className="wa-btn-group" role="group" aria-label="Mensajes de WhatsApp">
-          {TIPOS_MENSAJE.map(tipo => (
-            <WhatsAppButton
-              key={tipo}
-              reunion={reunion}
-              tipo={tipo}
-              onSent={onSent}
-            />
-          ))}
+      {/* Detalles Secundarios */}
+      <div className="card-details">
+        <div className="detail-item">
+          <span className="detail-label">Cargo</span>
+          <span className="detail-value">{reunion.cargo || 'N/A'}</span>
         </div>
+        <div className="detail-item">
+          <span className="detail-label">Canal</span>
+          <span className="detail-value">{reunion.canal || 'N/A'}</span>
+        </div>
+        <div className="detail-item">
+          <span className="detail-label">SDR</span>
+          <span className="detail-value">{reunion.sdr_name || 'N/A'}</span>
+        </div>
+        <div className="detail-item">
+          <span className="detail-label">Teléfono</span>
+          <span className="detail-value">{reunion.telefono || 'N/A'}</span>
+        </div>
+      </div>
 
-        {/* Delete */}
-        <div className="meeting-actions">
-          <button
-            id={`btn-delete-${reunion.id}`}
-            className="btn-icon danger"
-            onClick={() => onDelete(reunion.id)}
-            title="Eliminar reunión"
-            aria-label={`Eliminar reunión con ${reunion.nombre_prospecto}`}
-          >
-            🗑
-          </button>
-        </div>
+      {/* Acciones de Seguimiento (WhatsApp o Email Alert) */}
+      <div className="wa-actions">
+        {TIPOS_MENSAJE.map(tipo => (
+          <WhatsAppButton
+            key={tipo}
+            reunion={reunion}
+            tipo={tipo}
+            onSent={onSent}
+          />
+        ))}
+      </div>
+
+      {/* Footer: Notas y Borrar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+        <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', maxWidth: '80%' }}>
+          {reunion.notas ? `"${reunion.notas.substring(0, 50)}${reunion.notas.length > 50 ? '...' : ''}"` : 'Sin contexto adicional'}
+        </p>
+        <button 
+          onClick={() => { if(confirm('¿Eliminar esta reunión?')) onDelete(reunion.id) }}
+          style={{ background: 'none', border: 'none', color: 'var(--accent-red)', opacity: 0.5, cursor: 'pointer', fontSize: '14px' }}
+        >
+          🗑️
+        </button>
       </div>
     </article>
   )

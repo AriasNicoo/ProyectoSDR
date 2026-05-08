@@ -1,51 +1,48 @@
-import { format, isToday, isTomorrow, nextMonday, startOfDay, endOfDay } from 'date-fns'
+import { format, isToday, isTomorrow, startOfWeek, addDays, startOfDay, endOfDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { Reunion, FiltroFecha } from './types'
 
 /**
- * Devuelve el rango de fechas [inicio, fin] para un filtro dado.
- * Se usa para filtrar reuniones en Supabase.
+ * Devuelve el rango de fechas para filtrar por día de la semana (L-V)
+ * Siempre se enfoca en la SEMANA ACTUAL.
  */
 export function getRangoFecha(filtro: FiltroFecha): { desde: string; hasta: string } | null {
-  const hoy = new Date()
+  if (filtro === 'todos') return null
 
-  switch (filtro) {
-    case 'hoy': {
-      return {
-        desde: startOfDay(hoy).toISOString(),
-        hasta: endOfDay(hoy).toISOString(),
-      }
-    }
-    case 'manana': {
-      const manana = new Date(hoy)
-      manana.setDate(hoy.getDate() + 1)
-      return {
-        desde: startOfDay(manana).toISOString(),
-        hasta: endOfDay(manana).toISOString(),
-      }
-    }
-    case 'lunes': {
-      // Próximo lunes (o el lunes actual si hoy es lunes)
-      const lunes = hoy.getDay() === 1 ? hoy : nextMonday(hoy)
-      return {
-        desde: startOfDay(lunes).toISOString(),
-        hasta: endOfDay(lunes).toISOString(),
-      }
-    }
-    case 'todos':
-    default:
-      return null
+  const hoy = new Date()
+  const lunesSemanaActual = startOfWeek(hoy, { weekStartsOn: 1 })
+
+  const diasOffset: Record<string, number> = {
+    lunes: 0,
+    martes: 1,
+    miercoles: 2,
+    jueves: 3,
+    viernes: 4
+  }
+
+  const offset = diasOffset[filtro as string]
+  if (offset === undefined) return null
+
+  const diaDeseado = addDays(lunesSemanaActual, offset)
+  const diaString = format(diaDeseado, 'yyyy-MM-dd')
+
+  return {
+    desde: diaString,
+    hasta: diaString
   }
 }
 
 /**
  * Formatea una fecha de reunión para mostrar en el dashboard.
  */
-export function formatearFechaReunion(fechaISO: string): string {
-  const fecha = new Date(fechaISO)
-  if (isToday(fecha)) return `Hoy, ${format(fecha, 'HH:mm')}`
-  if (isTomorrow(fecha)) return `Mañana, ${format(fecha, 'HH:mm')}`
-  return format(fecha, "EEEE d 'de' MMMM", { locale: es })
+export function formatearFechaReunion(fecha: string, hora?: string): string {
+  // Combinamos fecha (YYYY-MM-DD) y hora (HH:mm:ss) para formateo
+  const d = new Date(`${fecha}T${hora || '00:00:00'}`)
+  
+  if (isToday(d)) return `Hoy, ${format(d, 'HH:mm')}`
+  if (isTomorrow(d)) return `Mañana, ${format(d, 'HH:mm')}`
+  
+  return format(d, "EEEE d 'de' MMMM, HH:mm", { locale: es })
 }
 
 /**
@@ -54,26 +51,27 @@ export function formatearFechaReunion(fechaISO: string): string {
 export function buildWhatsAppMessage(
   tipo: 'post_llamada' | '24h' | '1h',
   nombre: string,
-  fechaReunion: string
+  fecha: string,
+  hora: string
 ): string {
-  const fecha = formatearFechaReunion(fechaReunion)
+  const fechaTexto = formatearFechaReunion(fecha, hora)
 
   switch (tipo) {
     case 'post_llamada':
       return (
         `Hola ${nombre}! 👋 Gracias por tu tiempo hoy.\n\n` +
         `Me da mucho gusto haber conversado contigo. ` +
-        `Quedamos en reunirnos el ${fecha}. Cualquier duda estoy disponible. ¡Hasta entonces! 🚀`
+        `Quedamos en reunirnos el ${fechaTexto}. Cualquier duda estoy disponible. ¡Hasta entonces! 🚀`
       )
     case '24h':
       return (
         `Hola ${nombre}! ⏰ Solo quería recordarte que nuestra reunión es mañana.\n\n` +
-        `Tenemos agendada para el ${fecha}. ¿Todo bien por tu parte? ¡Nos vemos pronto!`
+        `Tenemos agendada para el ${fechaTexto}. ¿Todo bien por tu parte? ¡Nos vemos pronto!`
       )
     case '1h':
       return (
         `Hola ${nombre}! 🔔 Nuestra reunión es en 1 hora.\n\n` +
-        `Hora: ${fecha}. ¡Aquí estaré listo! Cualquier cambio, avísame.`
+        `Hora: ${fechaTexto}. ¡Aquí estaré listo! Cualquier cambio, avísame.`
       )
   }
 }
@@ -82,8 +80,8 @@ export function buildWhatsAppMessage(
  * Construye la URL de wa.me para abrir WhatsApp directamente.
  */
 export function buildWhatsAppURL(telefono: string, mensaje: string): string {
-  // Limpia el teléfono: solo dígitos y opcional '+'
-  const telefonoLimpio = telefono.replace(/[^\d+]/g, '')
+  // Limpia el teléfono: solo dígitos
+  const telefonoLimpio = (telefono || '').replace(/\D/g, '')
   return `https://wa.me/${telefonoLimpio}?text=${encodeURIComponent(mensaje)}`
 }
 
@@ -92,7 +90,7 @@ export function buildWhatsAppURL(telefono: string, mensaje: string): string {
  */
 export function agruparPorFecha(reuniones: Reunion[]): Record<string, Reunion[]> {
   return reuniones.reduce<Record<string, Reunion[]>>((acc, reunion) => {
-    const fecha = reunion.fecha_reunion.slice(0, 10) // 'YYYY-MM-DD'
+    const fecha = reunion.fecha_reunion
     if (!acc[fecha]) acc[fecha] = []
     acc[fecha].push(reunion)
     return acc

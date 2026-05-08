@@ -9,45 +9,41 @@ interface FilterBarProps {
   reuniones: Reunion[]
 }
 
-const FILTROS: { key: FiltroFecha; label: string; emoji: string }[] = [
-  { key: 'hoy',    label: 'Hoy',    emoji: '☀️' },
-  { key: 'manana', label: 'Mañana', emoji: '📅' },
-  { key: 'lunes',  label: 'Lunes',  emoji: '🗓️' },
-  { key: 'todos',  label: 'Todos',  emoji: '📋' },
+const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
+  { key: 'lunes',     label: 'Lunes',     short: 'L' },
+  { key: 'martes',    label: 'Martes',    short: 'M' },
+  { key: 'miercoles', label: 'Miércoles', short: 'M' },
+  { key: 'jueves',    label: 'Jueves',    short: 'J' },
+  { key: 'viernes',   label: 'Viernes',   short: 'V' },
 ]
 
 export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reuniones }: FilterBarProps) {
   return (
-    <div className="filter-bar" role="toolbar" aria-label="Filtros de fecha">
-      <span className="filter-label">Vista</span>
-
-      {FILTROS.map(({ key, label, emoji }) => (
-        <button
-          key={key}
-          id={`filter-btn-${key}`}
-          className={`filter-btn ${filtroActivo === key ? 'active' : ''}`}
-          onClick={() => onFiltroChange(key)}
-          aria-pressed={filtroActivo === key}
-          aria-label={`Filtrar por ${label}`}
-        >
-          <span>{emoji}</span>
-          <span>{label}</span>
-          {filtroActivo === key && (
-            <span className="filter-count">{reuniones.length}</span>
-          )}
-        </button>
-      ))}
-
-      <div className="filter-divider" aria-hidden="true" />
-
+    <div className="tab-navigation">
+      <div className="tab-list" role="tablist">
+        {FILTROS.map(({ key, label, short }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={filtroActivo === key}
+            className={`tab-item ${filtroActivo === key ? 'active' : ''}`}
+            onClick={() => onFiltroChange(key)}
+          >
+            <span className="tab-label-full">{label}</span>
+            <span className="tab-label-short">{short}</span>
+            {filtroActivo === key && reuniones.length > 0 && (
+              <span className="tab-badge">{reuniones.length}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      
       <button
-        id="btn-nueva-reunion"
-        className="btn-add-meeting"
+        className="fab-add"
         onClick={onAgregarReunion}
-        aria-label="Agregar nueva reunión"
+        aria-label="Agregar reunión"
       >
         <span>+</span>
-        <span>Nueva Reunión</span>
       </button>
     </div>
   )

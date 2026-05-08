@@ -3,22 +3,37 @@ export type EstadoMensaje = 'pendiente' | 'enviado' | 'no_aplica'
 
 export interface Reunion {
   id: string
+  created_at: string
+  
+  // Metadatos
+  sdr_name: string | null
+  titulo_reunion: string | null
+  
+  // Prospecto
+  empresa: string | null
   nombre_prospecto: string
-  telefono: string
-  fecha_reunion: string       // ISO date string
-  hora_reunion: string        // "HH:mm"
-  notas: string | null
+  correos_contacto: string | null
+  cargo: string | null
+  telefono: string | null
+  
+  // Tiempo
+  fecha_reunion: string       // "YYYY-MM-DD"
+  hora_reunion: string        // "HH:mm:ss"
+  
+  // Origen
+  email_origen: string | null
+  agendado_para: string | null
+  canal: string | null
+  notas: string | null        // Aquí guardamos el contexto
+  
   // Estado de los 3 mensajes de seguimiento
   estado_post_llamada: EstadoMensaje
   estado_24h: EstadoMensaje
   estado_1h: EstadoMensaje
-  // Timestamp de última actualización de estados
-  estados_actualizados_en: string | null
-  // Columna preparada para webhook de respuesta futura
-  ultima_interaccion: string | null
-  // Metadatos
-  created_at: string
-  updated_at: string
+  
+  // Timestamp de última actualización de estados (opcional en el nuevo schema pero útil)
+  estados_actualizados_en?: string | null
+  ultima_interaccion?: string | null
 }
 
 export type TipoMensaje = 'post_llamada' | '24h' | '1h'
@@ -29,5 +44,5 @@ export interface ActualizarEstadoPayload {
   estado: EstadoMensaje
 }
 
-// Filtros de vista
-export type FiltroFecha = 'hoy' | 'manana' | 'lunes' | 'todos'
+// Filtros de vista - Ahora por día de la semana
+export type FiltroFecha = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'todos'

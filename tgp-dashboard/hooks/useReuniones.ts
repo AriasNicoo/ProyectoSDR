@@ -11,7 +11,6 @@ interface UseReunionesReturn {
   error: string | null
   filtro: FiltroFecha
   setFiltro: (f: FiltroFecha) => void
-  agregarReunion: (data: Omit<Reunion, 'id' | 'created_at' | 'updated_at' | 'estado_post_llamada' | 'estado_24h' | 'estado_1h' | 'estados_actualizados_en' | 'ultima_interaccion'>) => Promise<void>
   actualizarEstadoMensaje: (reunionId: string, tipo: TipoMensaje, estado: EstadoMensaje) => Promise<void>
   eliminarReunion: (reunionId: string) => Promise<void>
   refetch: () => Promise<void>
@@ -23,11 +22,24 @@ const CAMPO_MAP: Record<TipoMensaje, keyof Reunion> = {
   '1h': 'estado_1h',
 }
 
+// Determinar el día actual para el filtro inicial
+const getInitialFilter = (): FiltroFecha => {
+  const dia = new Date().getDay() // 0=Dom, 1=Lun, ..., 5=Vie, 6=Sab
+  const map: Record<number, FiltroFecha> = {
+    1: 'lunes',
+    2: 'martes',
+    3: 'miercoles',
+    4: 'jueves',
+    5: 'viernes'
+  }
+  return map[dia] || 'lunes'
+}
+
 export function useReuniones(): UseReunionesReturn {
   const [reuniones, setReuniones] = useState<Reunion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filtro, setFiltroState] = useState<FiltroFecha>('todos')
+  const [filtro, setFiltroState] = useState<FiltroFecha>(getInitialFilter())
 
   const supabase = createClient()
 
@@ -39,13 +51,12 @@ export function useReuniones(): UseReunionesReturn {
       let query = supabase
         .from('reuniones')
         .select('*')
-        .order('fecha_reunion', { ascending: true })
+        .order('hora_reunion', { ascending: true })
 
       const rango = getRangoFecha(filtro)
       if (rango) {
         query = query
-          .gte('fecha_reunion', rango.desde)
-          .lte('fecha_reunion', rango.hasta)
+          .eq('fecha_reunion', rango.desde)
       }
 
       const { data, error: err } = await query
@@ -76,28 +87,11 @@ export function useReuniones(): UseReunionesReturn {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [filtro]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filtro, fetchReuniones])
 
   const setFiltro = useCallback((f: FiltroFecha) => {
     setFiltroState(f)
   }, [])
-
-  const agregarReunion = useCallback(async (
-    data: Omit<Reunion, 'id' | 'created_at' | 'updated_at' | 'estado_post_llamada' | 'estado_24h' | 'estado_1h' | 'estados_actualizados_en' | 'ultima_interaccion'>
-  ) => {
-    const { error: err } = await supabase
-      .from('reuniones')
-      .insert([{
-        ...data,
-        estado_post_llamada: 'pendiente',
-        estado_24h: 'pendiente',
-        estado_1h: 'pendiente',
-        estados_actualizados_en: null,
-        ultima_interaccion: null,
-      }])
-
-    if (err) throw err
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const actualizarEstadoMensaje = useCallback(async (
     reunionId: string,
@@ -110,7 +104,7 @@ export function useReuniones(): UseReunionesReturn {
     setReuniones(prev =>
       prev.map(r =>
         r.id === reunionId
-          ? { ...r, [campo]: estado, estados_actualizados_en: new Date().toISOString() }
+          ? { ...r, [campo]: estado }
           : r
       )
     )
@@ -118,20 +112,17 @@ export function useReuniones(): UseReunionesReturn {
     const { error: err } = await supabase
       .from('reuniones')
       .update({
-        [campo]: estado,
-        estados_actualizados_en: new Date().toISOString(),
+        [campo]: estado
       })
       .eq('id', reunionId)
 
     if (err) {
-      // Revertir optimista si falla
       await fetchReuniones()
       throw err
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchReuniones, supabase])
 
   const eliminarReunion = useCallback(async (reunionId: string) => {
-    // Optimistic removal
     setReuniones(prev => prev.filter(r => r.id !== reunionId))
 
     const { error: err } = await supabase
@@ -143,7 +134,7 @@ export function useReuniones(): UseReunionesReturn {
       await fetchReuniones()
       throw err
     }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchReuniones, supabase])
 
   return {
     reuniones,
@@ -151,7 +142,6 @@ export function useReuniones(): UseReunionesReturn {
     error,
     filtro,
     setFiltro,
-    agregarReunion,
     actualizarEstadoMensaje,
     eliminarReunion,
     refetch: fetchReuniones,
