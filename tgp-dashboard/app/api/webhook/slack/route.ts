@@ -72,13 +72,23 @@ export async function POST(req: Request) {
         const linkMeet = extract(/Link a Google Meet:\s*(https?:\/\/\S+)/i);
         const cliente = extract(/Cliente:\s*(.+)/i);
         
+        // --- INTELIGENCIA: Extraer cliente de la primera línea (Agendamiento/Reagendamiento) ---
+        let clienteFinal = cliente;
+        if (!clienteFinal && titulo && /^(Reagendamiento|Agendamiento)/i.test(titulo)) {
+          // Quitamos las palabras clave para quedarnos solo con el nombre del cliente
+          clienteFinal = titulo.replace(/^(Reagendamiento|Agendamiento)\s+/i, '').trim();
+          if (clienteFinal.length < 2 || clienteFinal.toLowerCase() === 'reunión agendada') {
+            clienteFinal = null;
+          }
+        }
+
         // Contexto multi-línea
         const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nLink a Google Meet:|\nSDR:|\n$|$)/i);
         const contexto = contextoMatch ? contextoMatch[1].trim() : null;
 
         let notasFinal = contexto;
-        if (cliente) {
-          notasFinal = notasFinal ? `[Cliente: ${cliente}] ${notasFinal}` : `[Cliente: ${cliente}]`;
+        if (clienteFinal) {
+          notasFinal = notasFinal ? `[Cliente: ${clienteFinal}] ${notasFinal}` : `[Cliente: ${clienteFinal}]`;
         }
 
         if (telefono && telefono.toUpperCase() === 'N/A') {
