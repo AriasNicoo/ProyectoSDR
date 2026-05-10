@@ -45,7 +45,8 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      if (event.type === 'message' && !event.bot_id && event.text && event.text.includes('SDR: Nicolas Arias')) {
+      // Validar que sea un mensaje y tenga la cadena "SDR:" en cualquier parte
+      if (event.type === 'message' && !event.bot_id && event.text && /SDR:\s*.+/i.test(event.text)) {
         const texto = event.text;
 
         await addSlackReaction(event.channel, event.ts, 'rocket');

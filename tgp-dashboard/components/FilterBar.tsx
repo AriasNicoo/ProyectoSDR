@@ -9,11 +9,13 @@ interface FilterBarProps {
   reuniones: Reunion[]
 }
 
+// Usamos 'Miercoles' sin tilde para descartar definitivamente errores de codificación 
+// de archivos en sistemas Windows/ANSI que rompen la hidratación de React en Next.js
 const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
   { key: 'todos',     label: 'Todos',     short: 'T' },
   { key: 'lunes',     label: 'Lunes',     short: 'L' },
   { key: 'martes',    label: 'Martes',    short: 'M' },
-  { key: 'miercoles', label: 'Miércoles', short: 'M' },
+  { key: 'miercoles', label: 'Miercoles', short: 'M' },
   { key: 'jueves',    label: 'Jueves',    short: 'J' },
   { key: 'viernes',   label: 'Viernes',   short: 'V' },
 ]
@@ -42,7 +44,7 @@ export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reun
       <button
         className="fab-add"
         onClick={onAgregarReunion}
-        aria-label="Agregar reunión"
+        aria-label="Agregar reunion"
       >
         <span>+</span>
       </button>

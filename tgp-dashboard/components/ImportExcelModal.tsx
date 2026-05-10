@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
 import { AlertTriangle, Upload, FileSpreadsheet, Check, X, Loader2 } from 'lucide-react'
@@ -38,7 +38,31 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
   const [parsedData, setParsedData] = useState<ParsedMeeting[]>([])
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [userSdrName, setUserSdrName] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Obtener el nombre real del SDR logueado
+  useEffect(() => {
+    if (!open) return
+    
+    const fetchSdrName = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase
+          .from('perfiles')
+          .select('nombre_sdr')
+          .eq('id', user.id)
+          .single()
+        
+        if (data?.nombre_sdr) {
+          setUserSdrName(data.nombre_sdr)
+        }
+      }
+    }
+    
+    fetchSdrName()
+  }, [open])
 
   if (!open) return null
 
@@ -231,7 +255,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         agendado_para: agendadoPara,
         canal: canal ? canal.toUpperCase() : 'CALL',
         notas: notasFinal,
-        sdr_name: sdrName || 'Nicolas Arias',
+        sdr_name: sdrName || userSdrName || 'SDR',
         link_meet: linkMeet
       }
 
@@ -389,7 +413,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
             agendado_para: rawEjecutivos || null,
             canal: rawCanal ? rawCanal.toUpperCase() : 'CALL',
             notas: notasFinal,
-            sdr_name: rawSdr || 'Nicolas Arias',
+            sdr_name: rawSdr || userSdrName || 'SDR',
             link_meet: rawLinkMeet || null
           })
         }
@@ -582,7 +606,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
                   <textarea
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
-                    placeholder={`Ejemplo:\nReunión Agendada\nEmpresa: Google\nNombre Contacto: John Doe\nDía y Hora: 2026-06-15 14:00\nSDR: Nicolas Arias`}
+                    placeholder={`Ejemplo:\nReunión Agendada\nEmpresa: Google\nNombre Contacto: John Doe\nDía y Hora: 2026-06-15 14:00\nSDR: ${userSdrName || 'Nicolas Arias'}`}
                     style={{
                       width: '100%',
                       height: '160px',

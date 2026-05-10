@@ -9,7 +9,8 @@ import { AddMeetingModal } from './AddMeetingModal'
 import { ImportExcelModal } from './ImportExcelModal'
 import { ToastContainer } from './ToastContainer'
 import type { TipoMensaje } from '@/lib/types'
-import { FileSpreadsheet } from 'lucide-react'
+import { FileSpreadsheet, LogOut } from 'lucide-react'
+import { signOut } from '@/lib/actions/auth'
 
 export function Dashboard() {
   const {
@@ -30,7 +31,7 @@ export function Dashboard() {
   const handleSentMessage = async (reunionId: string, tipo: TipoMensaje) => {
     try {
       await actualizarEstadoMensaje(reunionId, tipo, 'enviado')
-      addToast('✅ Registro actualizado', 'success')
+      addToast('✓ Registro actualizado', 'success')
     } catch {
       addToast('No se pudo actualizar el estado', 'error')
     }
@@ -39,14 +40,14 @@ export function Dashboard() {
   const handleDelete = async (reunionId: string) => {
     try {
       await eliminarReunion(reunionId)
-      addToast('🗑️ Reunión eliminada', 'success')
+      addToast('🗑 Reunion eliminada', 'success')
     } catch {
-      addToast('Error al eliminar la reunión', 'error')
+      addToast('Error al eliminar la reunion', 'error')
     }
   }
 
   const handleAddReunion = async (data: any) => {
-    addToast('⚠️ Usa el canal de Slack o el importador de Excel para agregar reuniones de forma segura.', 'error')
+    addToast('⚠ Usa el canal de Slack o el importador de Excel para agregar reuniones de forma segura.', 'error')
     setModalOpen(false)
   }
 
@@ -70,39 +71,63 @@ export function Dashboard() {
             )}
           </div>
           
-          <button
-            onClick={() => setExcelModalOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              padding: '6px 12px',
-              color: 'var(--text-primary)',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = 'var(--accent-green)';
-              e.currentTarget.style.boxShadow = '0 0 10px var(--accent-green-glow)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-default)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-            }}
-          >
-            <FileSpreadsheet style={{ color: 'var(--accent-green)', width: '15px', height: '15px' }} />
-            <span>Importar Excel</span>
-          </button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button
+              onClick={() => setExcelModalOpen(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                padding: '6px 12px',
+                color: 'var(--text-primary)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent-green)';
+                e.currentTarget.style.boxShadow = '0 0 10px var(--accent-green-glow)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-default)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+              }}
+            >
+              <FileSpreadsheet style={{ color: 'var(--accent-green)', width: '15px', height: '15px' }} />
+              <span>Importar Excel</span>
+            </button>
+
+            <button
+              onClick={() => signOut()}
+              title="Cerrar Sesión"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                width: '32px',
+                height: '32px',
+                color: '#ef4444',
+                cursor: 'pointer',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)'}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* TABS DE NAVEGACIÓN (L-V) */}
+      {/* TABS DE NAVEGACION (L-V) */}
       <FilterBar
         filtroActivo={filtro}
         onFiltroChange={setFiltro}
@@ -114,7 +139,7 @@ export function Dashboard() {
       <main className="app-main">
         {error && (
           <div style={{ background: '#2a1111', color: '#ff6b6b', padding: '12px', borderRadius: '8px', fontSize: '13px', marginBottom: '16px' }}>
-            ⚠️ Error: {error}
+            ⚠ Error: {error}
           </div>
         )}
 
@@ -128,8 +153,8 @@ export function Dashboard() {
         {!loading && !error && reuniones.length === 0 && (
           <div className="empty-state">
             <div className="empty-state-icon">☕</div>
-            <p className="empty-state-title">Sin reuniones para este día</p>
-            <p className="empty-state-subtitle">¡Buen momento para prospectar!</p>
+            <p className="empty-state-title">Sin reuniones para este dia</p>
+            <p className="empty-state-subtitle">Buen momento para prospectar!</p>
           </div>
         )}
 
@@ -154,7 +179,7 @@ export function Dashboard() {
         onSubmit={handleAddReunion}
       />
 
-      {/* Modal para Importación de Excel */}
+      {/* Modal para Importacion de Excel */}
       <ImportExcelModal
         open={excelModalOpen}
         onClose={() => setExcelModalOpen(false)}

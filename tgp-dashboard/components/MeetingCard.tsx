@@ -90,8 +90,8 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
         <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', maxWidth: '80%' }}>
           {reunion.notas ? `"${reunion.notas.substring(0, 50)}${reunion.notas.length > 50 ? '...' : ''}"` : 'Sin contexto adicional'}
         </p>
-        <button 
-          onClick={() => { if(confirm('¿Eliminar esta reunión?')) onDelete(reunion.id) }}
+        <button
+          onClick={() => { if (confirm('¿Eliminar esta reunión?')) onDelete(reunion.id) }}
           style={{ background: 'none', border: 'none', color: 'var(--accent-red)', opacity: 0.5, cursor: 'pointer', fontSize: '14px' }}
         >
           🗑️

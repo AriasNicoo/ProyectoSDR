@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Reunion, FiltroFecha, TipoMensaje, EstadoMensaje } from '@/lib/types'
 import { getRangoFecha } from '@/lib/utils'
+import { format } from 'date-fns'
 
 interface UseReunionesReturn {
   reuniones: Reunion[]
@@ -23,14 +24,26 @@ const CAMPO_MAP: Record<TipoMensaje, keyof Reunion> = {
 }
 
 // Determinar el día actual para el filtro inicial
+// Determinar el día actual para el filtro inicial, adelantando si ya terminó la jornada laboral
 const getInitialFilter = (): FiltroFecha => {
-  const dia = new Date().getDay() // 0=Dom, 1=Lun, ..., 5=Vie, 6=Sab
+  const hoy = new Date()
+  const dia = hoy.getDay() // 0=Dom, 1=Lun, ..., 5=Vie, 6=Sab
+
+  // Si es viernes por la tarde (después de las 18:30), adelantamos al Lunes
+  if (dia === 5) {
+    const horaLimite = new Date()
+    horaLimite.setHours(18, 30, 0, 0)
+    if (hoy > horaLimite) {
+      return 'lunes'
+    }
+    return 'viernes'
+  }
+
   const map: Record<number, FiltroFecha> = {
     1: 'lunes',
     2: 'martes',
     3: 'miercoles',
-    4: 'jueves',
-    5: 'viernes'
+    4: 'jueves'
   }
   return map[dia] || 'lunes'
 }
@@ -39,7 +52,10 @@ export function useReuniones(): UseReunionesReturn {
   const [reuniones, setReuniones] = useState<Reunion[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filtro, setFiltroState] = useState<FiltroFecha>(getInitialFilter())
+  
+  // Usamos 'todos' como inicial fijo para evitar mismatch de hidratación (SSR vs Client)
+  const [filtro, setFiltroState] = useState<FiltroFecha>('todos')
+  const [isMounted, setIsMounted] = useState(false)
 
   const supabase = createClient()
 
@@ -49,7 +65,7 @@ export function useReuniones(): UseReunionesReturn {
 
     try {
       const hoyObj = new Date()
-      const hoyStr = hoyObj.toISOString().split('T')[0]
+      const hoyStr = format(hoyObj, 'yyyy-MM-dd')
       const diaSemana = hoyObj.getDay()
       let adelantarSemana = false
 
@@ -106,8 +122,16 @@ export function useReuniones(): UseReunionesReturn {
     }
   }, [filtro]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Suscripción en tiempo real
+  // Efecto 1: Hidratación y selección del filtro inicial real una sola vez en cliente
   useEffect(() => {
+    setFiltroState(getInitialFilter())
+    setIsMounted(true)
+  }, [])
+
+  // Efecto 2: Suscripción en tiempo real y carga de datos al cambiar el filtro
+  useEffect(() => {
+    if (!isMounted) return
+
     fetchReuniones()
 
     const channel = supabase
@@ -122,7 +146,7 @@ export function useReuniones(): UseReunionesReturn {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [filtro, fetchReuniones])
+  }, [filtro, fetchReuniones, isMounted, supabase])
 
   const setFiltro = useCallback((f: FiltroFecha) => {
     setFiltroState(f)
