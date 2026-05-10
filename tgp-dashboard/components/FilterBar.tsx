@@ -12,6 +12,7 @@ interface FilterBarProps {
 // Usamos 'Miercoles' sin tilde para descartar definitivamente errores de codificación 
 // de archivos en sistemas Windows/ANSI que rompen la hidratación de React en Next.js
 const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
+  { key: 'por_enviar', label: '📤 Por Enviar', short: '📤' },
   { key: 'todos',     label: 'Todos',     short: 'T' },
   { key: 'lunes',     label: 'Lunes',     short: 'L' },
   { key: 'martes',    label: 'Martes',    short: 'M' },

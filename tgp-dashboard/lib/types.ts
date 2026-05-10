@@ -45,4 +45,4 @@ export interface ActualizarEstadoPayload {
 }
 
 // Filtros de vista - Ahora por día de la semana
-export type FiltroFecha = 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'todos'
+export type FiltroFecha = 'por_enviar' | 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'todos'

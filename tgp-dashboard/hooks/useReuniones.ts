@@ -97,17 +97,24 @@ export function useReuniones(): UseReunionesReturn {
         }
       }
 
-      let query = supabase
-        .from('reuniones')
-        .select('*')
-        .gte('fecha_reunion', hoyStr) // Solo mostrar desde hoy en adelante
-        .order('fecha_reunion', { ascending: true })
-        .order('hora_reunion', { ascending: true })
+      let query = supabase.from('reuniones').select('*')
 
-      const rango = getRangoFecha(filtro, adelantarSemana)
-      if (rango) {
+      if (filtro === 'por_enviar') {
+        // Especial: Mostrar SOLO lo que esté pendiente de post_llamada sin límite de fecha, ordenado por creación
         query = query
-          .eq('fecha_reunion', rango.desde)
+          .eq('estado_post_llamada', 'pendiente')
+          .order('created_at', { ascending: false })
+      } else {
+        // Comportamiento normal de calendario
+        query = query
+          .gte('fecha_reunion', hoyStr)
+          .order('fecha_reunion', { ascending: true })
+          .order('hora_reunion', { ascending: true })
+
+        const rango = getRangoFecha(filtro, adelantarSemana)
+        if (rango) {
+          query = query.eq('fecha_reunion', rango.desde)
+        }
       }
 
       const { data, error: err } = await query
@@ -160,13 +167,14 @@ export function useReuniones(): UseReunionesReturn {
     const campo = CAMPO_MAP[tipo]
 
     // Actualización optimista local
-    setReuniones(prev =>
-      prev.map(r =>
-        r.id === reunionId
-          ? { ...r, [campo]: estado }
-          : r
-      )
-    )
+    setReuniones(prev => {
+      // Si estamos en la vista "Por Enviar" y completamos el post_llamada, la quitamos visualmente de inmediato
+      if (filtro === 'por_enviar' && campo === 'estado_post_llamada' && estado !== 'pendiente') {
+        return prev.filter(r => r.id !== reunionId)
+      }
+      // Si no, solo actualizamos el estado visual de la tarjeta
+      return prev.map(r => r.id === reunionId ? { ...r, [campo]: estado } : r)
+    })
 
     const { error: err } = await supabase
       .from('reuniones')
