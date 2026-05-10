@@ -1,3 +1,5 @@
+'use client'
+
 import { actualizarPerfilSDR } from '@/lib/actions/perfil'
 import { UserRound } from 'lucide-react'
 

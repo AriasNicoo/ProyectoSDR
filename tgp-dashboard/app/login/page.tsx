@@ -1,13 +1,14 @@
+'use client'
+
 import { signInWithGoogle } from '@/lib/actions/auth'
 import { LogIn } from 'lucide-react'
 
-export default function LoginPage({
-  searchParams,
-}: {
-  searchParams: { [key: string]: string | string[] | undefined }
-}) {
-  // In dynamic pages this component is dynamic
-  const error = searchParams.error
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
 
   let mensajeError = ''
   if (error === 'dominio_no_permitido') {
@@ -136,5 +137,13 @@ export default function LoginPage({
         `}</style>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#0c0e10' }} />}>
+      <LoginForm />
+    </Suspense>
   )
 }

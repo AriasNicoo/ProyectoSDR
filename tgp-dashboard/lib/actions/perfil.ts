@@ -15,7 +15,7 @@ export async function actualizarPerfilSDR(formData: FormData) {
   const rawApellido = formData.get('apellido') as string
 
   if (!rawNombre || !rawApellido) {
-    return { error: 'Debes completar ambos campos.' }
+    return
   }
 
   // Guardar como lo escribe el usuario capitalizado apropiadamente
@@ -32,7 +32,7 @@ export async function actualizarPerfilSDR(formData: FormData) {
 
   if (error) {
     console.error('Error guardando perfil:', error)
-    return { error: 'No se pudo guardar el perfil. Intenta nuevamente.' }
+    return
   }
 
   // Redirigir al dashboard una vez listo
