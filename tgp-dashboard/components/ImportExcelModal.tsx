@@ -439,6 +439,12 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
       let duplicados = 0
 
       for (const item of parsedData) {
+        // CRÍTICO: Sobrescribir sdr_name con el nombre exacto del perfil del usuario
+        // Esto garantiza que pase el filtro RLS de Supabase y que el usuario pueda ver los datos.
+        if (userSdrName) {
+          item.sdr_name = userSdrName
+        }
+
         // Validación de duplicados idéntica a la lógica del webhook de Slack
         const { data: existingMeeting } = await supabase
           .from('reuniones')
