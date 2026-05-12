@@ -100,9 +100,12 @@ export function useReuniones(): UseReunionesReturn {
       let query = supabase.from('reuniones').select('*')
 
       if (filtro === 'por_enviar') {
-        // Especial: Mostrar SOLO lo que esté pendiente de post_llamada sin límite de fecha, ordenado por creación
+        // "Por Avisar": recién agendadas que necesitan el mensaje de confirmación
+        // y que tienen teléfono para poder enviar WhatsApp
         query = query
-          .eq('estado_post_llamada', 'pendiente')
+          .eq('necesita_confirmacion', true)
+          .not('telefono', 'is', null)
+          .neq('telefono', '')
           .order('created_at', { ascending: false })
       } else {
         // Comportamiento normal de calendario
@@ -168,19 +171,25 @@ export function useReuniones(): UseReunionesReturn {
 
     // Actualización optimista local
     setReuniones(prev => {
-      // Si estamos en la vista "Por Enviar" y completamos el post_llamada, la quitamos visualmente de inmediato
-      if (filtro === 'por_enviar' && campo === 'estado_post_llamada' && estado !== 'pendiente') {
+      // Si estamos en "Por Avisar" y marcamos el post_llamada de cualquier estado → quitar visualmente
+      if (filtro === 'por_enviar' && campo === 'estado_post_llamada') {
         return prev.filter(r => r.id !== reunionId)
       }
       // Si no, solo actualizamos el estado visual de la tarjeta
       return prev.map(r => r.id === reunionId ? { ...r, [campo]: estado } : r)
     })
 
+    // Payload base para Supabase
+    const updatePayload: Record<string, unknown> = { [campo]: estado }
+
+    // Al confirmar el post-llamada, la reunión ya no necesita confirmación
+    if (tipo === 'post_llamada' && estado === 'enviado') {
+      updatePayload.necesita_confirmacion = false
+    }
+
     const { error: err } = await supabase
       .from('reuniones')
-      .update({
-        [campo]: estado
-      })
+      .update(updatePayload)
       .eq('id', reunionId)
 
     if (err) {

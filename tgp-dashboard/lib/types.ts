@@ -34,6 +34,9 @@ export interface Reunion {
   
   estados_actualizados_en?: string | null
   ultima_interaccion?: string | null
+
+  // Control de flujo: true = recién agendada, necesita mensaje de confirmación post-llamada
+  necesita_confirmacion: boolean
 }
 
 export type TipoMensaje = 'post_llamada' | '24h' | '1h'
