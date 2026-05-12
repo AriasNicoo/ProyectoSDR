@@ -163,6 +163,29 @@ body {
   box-shadow: 0 0 8px var(--accent-green-glow);
 }
 
+/* === ALERTA CRITICA: Por Avisar activo === */
+.tab-item-general.tab-item-alert.active {
+  background: #D32F2F;
+  color: #000000;
+  border-color: #B71C1C;
+  box-shadow: 0 4px 18px rgba(211, 47, 47, 0.55);
+  animation: pulse-alert 2s ease-in-out infinite;
+}
+.tab-item-general.tab-item-alert.active::after {
+  background: #000000;
+  box-shadow: none;
+}
+.tab-item-general.tab-item-alert:not(.active):hover {
+  background: rgba(211, 47, 47, 0.12);
+  border-color: rgba(211, 47, 47, 0.4);
+  color: #EF5350;
+}
+
+@keyframes pulse-alert {
+  0%, 100% { box-shadow: 0 4px 18px rgba(211, 47, 47, 0.55); }
+  50%       { box-shadow: 0 4px 28px rgba(211, 47, 47, 0.85); }
+}
+
 .tab-label-short { display: none; }
 .tab-badge {
   position: absolute;

@@ -1,129 +1,131 @@
-# 📋 Ficha Técnica — SDR Tracker (ProyectoSeguimientoTGP)
+# Ficha Tecnica — SDR Tracker (ProyectoSeguimientoTGP)
+Actualizada: 12 de mayo de 2026
 
-## 1. Descripción General
+---
 
-**Nombre del sistema:** SDR Tracker / TGP Dashboard
-**Propósito:** Dashboard interno para que los SDRs (Sales Development Representatives) de la empresa **The Growth Pro** hagan seguimiento de sus reuniones agendadas y gestionen el envío de mensajes de WhatsApp de confirmación/recordatorio a prospectos.
+## 1. Descripcion General
+
+**Nombre:** SDR Tracker / TGP Dashboard
+**Empresa:** The Growth Pro (TGP)
+**Proposito:** Dashboard interno para SDRs — seguimiento de reuniones agendadas y gestion del envio de mensajes WhatsApp (confirmacion post-llamada, recordatorio 24h y 1h antes) a prospectos.
 
 **Flujo principal:**
-1. Un SDR agenda una reunión (por llamada, email o WhatsApp)
-2. El bot de Slack recibe automáticamente los datos → los inserta en Supabase
-3. El SDR abre el dashboard → ve la reunión → manda mensaje de WhatsApp de confirmación (post-llamada)
-4. 24h antes de la reunión → manda recordatorio
-5. 1h antes → manda recordatorio final
+1. Bot de Slack detecta mensaje estructurado → POST automatico al webhook
+2. Webhook parsea el mensaje, extrae campos y guarda en Supabase
+3. SDR abre dashboard → ve reunion en "Por Avisar" (si tiene telefono) → manda WA de confirmacion
+4. Reunion pasa al tab del dia correspondiente → SDR manda recordatorios 24h y 1h antes
+5. Si llega un **Reagendamiento**, el sistema ACTUALIZA la reunion existente (no crea duplicado)
 
-**Dominio restringido:** Solo cuentas con email `@thegrowth.pro` pueden iniciar sesión (validado en el callback de OAuth).
+**Dominio restringido:** Solo cuentas @thegrowth.pro pueden iniciar sesion.
 
 ---
 
-## 2. Stack Tecnológico
+## 2. Stack Tecnologico
 
-| Capa | Tecnología | Versión |
+| Capa | Tecnologia | Version |
 |---|---|---|
-| Framework Frontend/Backend | **Next.js** | 16.2.6 |
-| Lenguaje | **TypeScript** | ^5 |
-| UI | **React** | 19.2.4 |
-| Estilos | **Vanilla CSS** (design tokens, dark mode industrial) | — |
-| Base de datos + Auth | **Supabase** (PostgreSQL + Auth + Realtime) | JS SDK ^2.105.3 |
-| Supabase SSR | `@supabase/ssr` | ^0.10.3 |
-| Procesamiento de Excel | **xlsx** (SheetJS) | ^0.18.5 |
-| Fechas | **date-fns** | ^4.1.0 |
-| Iconos | **lucide-react** | ^1.14.0 |
-| Bot de notificaciones | **Slack API** (webhook + bot token) | — |
-| Mensajería | **WhatsApp** (via `api.whatsapp.com/send`) | — |
+| Framework | Next.js | 16.2.6 |
+| Lenguaje | TypeScript | ^5 |
+| UI | React | 19.2.4 |
+| Estilos | Vanilla CSS (dark mode industrial) | - |
+| Base de datos + Auth | Supabase (PostgreSQL + Auth + Realtime) | SDK ^2.105.3 |
+| Supabase SSR | @supabase/ssr | ^0.10.3 |
+| Procesamiento Excel | SheetJS (xlsx) | ^0.18.5 |
+| Fechas | date-fns | ^4.1.0 |
+| Iconos | lucide-react | ^1.14.0 |
+| Bot notificaciones | Slack API (Events API + Bot Token) | - |
+| Mensajeria | WhatsApp via api.whatsapp.com/send | - |
 
-**Runtime:** Node.js (Windows, desarrollo local con `npm run dev`)
-**Directorio activo del proyecto Next.js:** `tgp-dashboard/` (dentro del repo raíz `ProyectoSeguimientoTGP/`)
+**Runtime:** Node.js / Windows
+**Dev server:** npm run dev desde tgp-dashboard/
+**Repo:** AriasNicoo/ProyectoSeguimientoTGP (rama main)
 
 ---
 
-## 3. Estructura de Archivos Clave
+## 3. Estructura de Archivos
 
 ```
-tgp-dashboard/
-├── app/
-│   ├── layout.tsx                    # Layout raíz con fuentes
-│   ├── page.tsx                      # Redirige al dashboard
-│   ├── globals.css                   # Sistema de diseño completo (CSS tokens)
-│   ├── login/
-│   │   └── page.tsx                  # Pantalla de login Google OAuth
-│   ├── auth/callback/                # Callback de Supabase OAuth (valida dominio)
-│   ├── completar-perfil/
-│   │   └── page.tsx                  # Formulario inicial de nombre SDR
-│   └── api/webhook/slack/
-│       └── route.ts                  # Webhook receptor de Slack (POST handler)
+ProyectoSeguimientoTGP/
+├── supabase-scripts/
+│   └── schema.sql                  <- UNICO script SQL (copiar completo en Supabase)
 │
-├── components/
-│   ├── Dashboard.tsx                 # Componente raíz del dashboard
-│   ├── FilterBar.tsx                 # Tabs de navegación (Por Avisar, L-V, Todos)
-│   ├── MeetingCard.tsx               # Tarjeta individual de reunión
-│   ├── WhatsAppButton.tsx            # Botón de acción WhatsApp/Email por tipo
-│   ├── ImportExcelModal.tsx          # Modal: subir Excel o pegar mensaje Slack
-│   ├── AddMeetingModal.tsx           # Modal: agregar reunión (deshabilitado, solo informativo)
-│   └── ToastContainer.tsx            # Sistema de notificaciones toast
-│
-├── hooks/
-│   ├── useReuniones.ts               # Hook principal: fetch, filtros, realtime, CRUD
-│   └── useToast.ts                   # Hook para sistema de toasts
-│
-└── lib/
-    ├── types.ts                      # Interfaces TypeScript del sistema
-    ├── utils.ts                      # Helpers: fechas, mensajes WhatsApp, URLs
-    ├── supabase/
-    │   ├── client.ts                 # Cliente Supabase para browser (componentes cliente)
-    │   ├── server.ts                 # Cliente Supabase para servidor (SSR/Server Actions)
-    │   └── proxy.ts                  # Middleware/proxy Supabase
-    └── actions/
-        ├── auth.ts                   # Server Actions: signInWithGoogle, signOut
-        └── perfil.ts                 # Server Action: actualizarPerfilSDR
+└── tgp-dashboard/                  <- Proyecto Next.js activo
+    ├── app/
+    │   ├── globals.css             <- Diseno completo (CSS tokens, dark mode)
+    │   ├── layout.tsx
+    │   ├── page.tsx                <- Redirige al dashboard
+    │   ├── login/page.tsx          <- Login Google OAuth
+    │   ├── completar-perfil/page.tsx
+    │   ├── auth/callback/route.ts  <- Callback OAuth (valida dominio)
+    │   └── api/webhook/slack/route.ts <- Webhook receptor de Slack
+    │
+    ├── components/
+    │   ├── Dashboard.tsx           <- Componente raiz del dashboard
+    │   ├── FilterBar.tsx           <- Navegacion: 2 filas (generales + dias L-V)
+    │   ├── MeetingCard.tsx         <- Tarjeta de reunion
+    │   ├── WhatsAppButton.tsx      <- Botones WA por tipo de mensaje
+    │   ├── ImportExcelModal.tsx    <- Modal: subir Excel o pegar mensaje Slack
+    │   ├── AddMeetingModal.tsx     <- Modal informativo
+    │   └── ToastContainer.tsx      <- Notificaciones toast
+    │
+    ├── hooks/
+    │   ├── useReuniones.ts         <- Hook principal: fetch, filtros, realtime, CRUD
+    │   └── useToast.ts
+    │
+    └── lib/
+        ├── types.ts                <- Interfaces TypeScript
+        ├── utils.ts                <- Helpers: fechas, mensajes WA, URLs
+        ├── supabase/client.ts      <- Cliente browser (ANON_KEY)
+        ├── supabase/server.ts      <- Cliente servidor (SSR)
+        └── actions/auth.ts + perfil.ts
 ```
 
 ---
 
-## 4. Esquema de Base de Datos Supabase
+## 4. Schema Base de Datos
 
-### Tabla principal: `reuniones`
+### Tabla reuniones
 
-| Campo | Tipo | Descripción |
+| Campo | Tipo | Notas |
 |---|---|---|
-| `id` | uuid (PK) | ID único |
-| `created_at` | timestamp | Fecha de creación del registro |
-| `sdr_name` | text \| null | Nombre del SDR responsable |
-| `titulo_reunion` | text \| null | Título descriptivo |
-| `empresa` | text \| null | Empresa del prospecto |
-| `nombre_prospecto` | text | **Nombre del contacto** |
-| `correos_contacto` | text \| null | Email(s) del contacto |
-| `cargo` | text \| null | Cargo del contacto |
-| `telefono` | text \| null | Teléfono (formato `569XXXXXXXX`) |
-| `fecha_reunion` | text | Fecha en formato `YYYY-MM-DD` |
-| `hora_reunion` | text | Hora en formato `HH:mm:ss` |
-| `email_origen` | text \| null | Email desde donde salió la reunión |
-| `agendado_para` | text \| null | Ejecutivo/SDR para quien se agenda |
-| `canal` | text \| null | Canal de origen (CALL, EMAIL, WHATSAPP) |
-| `notas` | text \| null | Contexto + metadatos en formato `[Cliente: X \| Pod: Y]` |
-| `link_meet` | text \| null | URL de Google Meet |
-| `estado_post_llamada` | enum | `'pendiente'` \| `'enviado'` \| `'no_aplica'` |
-| `estado_24h` | enum | `'pendiente'` \| `'enviado'` \| `'no_aplica'` |
-| `estado_1h` | enum | `'pendiente'` \| `'enviado'` \| `'no_aplica'` |
-| `estados_actualizados_en` | timestamp \| null | Última actualización de estados |
-| `ultima_interaccion` | timestamp \| null | Última interacción registrada |
+| id | UUID PK | auto |
+| created_at | TIMESTAMPTZ | auto |
+| sdr_name | TEXT | Nombre SDR (de tabla perfiles) |
+| titulo_reunion | TEXT | Auto: "Reunion con {empresa}" |
+| empresa | TEXT | Empresa del PROSPECTO (ej: FORUS S.A) |
+| nombre_prospecto | TEXT NOT NULL | |
+| correos_contacto | TEXT | |
+| cargo | TEXT | |
+| telefono | TEXT | Formato 569XXXXXXXX |
+| fecha_reunion | TEXT | YYYY-MM-DD |
+| hora_reunion | TIME | HH:mm:ss |
+| email_origen | TEXT | Mail del SDR del cliente |
+| agendado_para | TEXT | Ejecutivos TGP invitados |
+| canal | TEXT | CALL, EMAIL, WHATSAPP |
+| notas | TEXT | Texto raw completo del mensaje del bot |
+| link_meet | TEXT | URL meet.google.com/xxx-xxx-xxx |
+| cliente | TEXT | Empresa CLIENTE de TGP (ej: Edenred Chile) |
+| estado_post_llamada | TEXT | pendiente, enviado, no_aplica |
+| estado_24h | TEXT | pendiente, enviado, no_aplica |
+| estado_1h | TEXT | pendiente, enviado, no_aplica |
+| necesita_confirmacion | BOOLEAN | true = tiene telefono, necesita WA post-llamada |
+| estados_actualizados_en | TIMESTAMPTZ | |
+| ultima_interaccion | TIMESTAMPTZ | |
 
-### Tabla secundaria: `perfiles`
+### Tabla perfiles
 
-| Campo | Tipo | Descripción |
+| Campo | Tipo | Notas |
 |---|---|---|
-| `id` | uuid (FK → auth.users) | ID del usuario Supabase |
-| `email` | text | Email corporativo |
-| `nombre_sdr` | text | Nombre completo del SDR |
-| `updated_at` | timestamp | Última actualización |
+| id | UUID PK | FK -> auth.users |
+| email | TEXT | |
+| nombre_sdr | TEXT | Nombre completo del SDR |
+| updated_at | TIMESTAMPTZ | |
 
 ---
 
-## 5. Tipos TypeScript Principales
+## 5. Tipos TypeScript
 
 ```typescript
-// lib/types.ts
-
 export type EstadoMensaje = 'pendiente' | 'enviado' | 'no_aplica'
 export type TipoMensaje = 'post_llamada' | '24h' | '1h'
 export type FiltroFecha = 'por_enviar' | 'lunes' | 'martes' | 'miercoles' | 'jueves' | 'viernes' | 'todos'
@@ -133,23 +135,23 @@ export interface Reunion {
   created_at: string
   sdr_name: string | null
   titulo_reunion: string | null
-  empresa: string | null
+  empresa: string | null            // Empresa del prospecto
   nombre_prospecto: string
   correos_contacto: string | null
   cargo: string | null
   telefono: string | null
-  fecha_reunion: string        // "YYYY-MM-DD"
-  hora_reunion: string         // "HH:mm:ss"
+  fecha_reunion: string             // "YYYY-MM-DD"
+  hora_reunion: string              // "HH:mm:ss"
   email_origen: string | null
   agendado_para: string | null
   canal: string | null
-  notas: string | null
+  notas: string | null              // Texto raw del bot
   link_meet: string | null
+  cliente: string | null            // Empresa cliente de TGP
   estado_post_llamada: EstadoMensaje
   estado_24h: EstadoMensaje
   estado_1h: EstadoMensaje
-  estados_actualizados_en?: string | null
-  ultima_interaccion?: string | null
+  necesita_confirmacion: boolean
 }
 ```
 
@@ -157,180 +159,158 @@ export interface Reunion {
 
 ## 6. Flujo de Datos
 
-### Ingesta automática (Slack → Dashboard)
+### Ingesta automatica (Slack -> Dashboard)
+
 ```
-Slack mensaje (formato estructurado)
-  → POST /api/webhook/slack
-    → Parsea regex los campos (Empresa, Nombre, Día y Hora, Teléfono, SDR, etc.)
-    → Normaliza teléfono (formato 569XXXXXXXX)
-    → Check anti-duplicados (nombre_prospecto + fecha_reunion + hora_reunion)
-    → INSERT en supabase tabla 'reuniones'
-    → Reacción ✅/❌ en Slack como confirmación
-    → Realtime Supabase notifica al dashboard abierto → auto-refresh
+Mensaje Slack bot estructurado
+  -> POST /api/webhook/slack
+    -> Detecta si es Reagendamiento (primera linea)
+    |
+    |-- REAGENDAMIENTO -> busca por nombre_prospecto -> UPDATE
+    |     (nueva fecha/hora/link, reset estados, necesita_confirmacion)
+    |     Slack: Reagendamiento aplicado!
+    |
+    +-- NUEVO AGENDAMIENTO
+          -> Parsea campos con regex (strip markdown Slack)
+          -> Extrae cliente de primera linea dinamicamente
+          -> Extrae link Meet regex estricto (meet.google.com/xxx-xxx-xxx)
+          -> Contexto multilínea (acepta "Contexto Reunion :")
+          -> Normaliza telefono (569XXXXXXXX)
+          -> Check anti-duplicados (nombre + fecha + hora)
+          -> INSERT: necesita_confirmacion = hayTelefono
+          -> Slack: Listo! La reunion con X esta en el Dashboard.
+          -> Realtime -> auto-refresh dashboard
 ```
 
-### Ingesta manual (Excel/Paste)
+### Ingesta manual (Excel / Texto pegado)
+
 ```
-Usuario abre ImportExcelModal
-  → Tab "Subir Excel": drag & drop .xlsx/.xls/.csv
-    → Parsea con SheetJS, mapeo inteligente de columnas por keywords
-    → Preview en tabla → Usuario confirma
-    → Loop INSERT con mismo check anti-duplicados
-  → Tab "Pegar Slack": textarea con el texto del mensaje
-    → Mismo parser regex que el webhook
-    → Preview → Confirma → INSERT
+ImportExcelModal
+  |-- Tab Excel: drag & drop .xlsx/.xls/.csv
+  |     -> SheetJS parsea columnas por keywords
+  |     -> Normaliza telefonos (incluye notacion cientifica 5.6E+10)
+  |     -> Preview -> Confirmar -> INSERT con anti-duplicados
+  |
+  +-- Tab Slack: textarea pegar mensaje
+        -> Mismo parser regex del webhook
+        -> Preview -> Confirmar -> INSERT
+
+En ambos: sdr_name = perfil del usuario logueado (sin hardcode)
 ```
 
-### Envío de seguimiento (Dashboard → WhatsApp)
+### Envio WhatsApp
+
 ```
-SDR ve la tarjeta → Pulsa botón (Post / 24h / 1h)
-  → buildWhatsAppMessage() genera el texto personalizado
-  → buildWhatsAppURL() genera https://api.whatsapp.com/send?phone=...&text=...
-  → window.open() abre WhatsApp en nueva pestaña
-  → onSent() → UPDATE en Supabase (estado → 'enviado')
-  → Actualización optimista local en React
+SDR pulsa boton (Post / 24h / 1h)
+  -> buildWhatsAppMessage(tipo, nombre, fecha, hora, link, sdr, cliente)
+  -> buildWhatsAppURL -> api.whatsapp.com/send?phone=...&text=...
+  -> window.open() -> WhatsApp nativo
+  -> UPDATE en Supabase
+     (si post_llamada=enviado: tambien necesita_confirmacion=false)
+  -> Actualizacion optimista React
 ```
 
 ---
 
-## 7. Funcionalidades Actuales
+## 7. Templates WhatsApp
+
+**post_llamada:**
+Hola {nombre}, por aca {sdr} de {cliente}. Tal como conversamos por telefono, la reunion quedo agendada para el dia {fecha}. Te adjunto el link para que puedas aceptar en tu calendario: {link_meet}. Saludos!
+
+**24h:**
+Hola {nombre}, como estas? Te escribo de {cliente} para recordarte nuestra reunion de manana a las {hora}. Te dejo el link de acceso a mano para que nos conectemos: {link_meet}. Que tengas buen dia!
+
+**1h:**
+Hola {nombre}, buen dia! Te recuerdo que en un ratito, a las {hora}, tenemos nuestra reunion. Nos vemos en este link: {link_meet}. Nos vemos ahi!
+
+---
+
+## 8. FilterBar Layout
+
+```
++--------------------------------------------+
+|    [Por Avisar]        [Todos]             |  <- Fila superior, centrada
++--------------------------------------------+  <- separador sutil
+| [Lunes] [Martes] [Miercoles] [Jueves] [V] |  <- Fila inferior L-V
++--------------------------------------------+
+                                        [+]    <- FAB verde
+```
+
+---
+
+## 9. Logica del Filtro "Por Avisar"
+
+Condicion de aparicion:
+- necesita_confirmacion = true (tiene telefono, aun no confirmada)
+- telefono IS NOT NULL y != ''
+
+necesita_confirmacion = false cuando:
+- estado_post_llamada = 'enviado' (SDR envio WA de confirmacion)
+- Agendado por mail sin telefono (se setea false en INSERT)
+
+---
+
+## 10. Funcionalidades Activas
 
 | Funcionalidad | Estado |
 |---|---|
-| Auth Google OAuth (dominio @thegrowth.pro) | ✅ Activo |
-| Perfil SDR (nombre para firma de reuniones) | ✅ Activo |
-| Dashboard mobile-first (dark mode) | ✅ Activo |
-| Filtro por día semana (L-V + Todos) | ✅ Activo |
-| Filtro "Por Avisar" (post-llamada pendiente) | ✅ Activo (con bug) |
-| Realtime Supabase (auto-refresh) | ✅ Activo |
-| Tarjetas de reunión con todos los datos | ✅ Activo |
-| Botones WhatsApp (Post / 24h / 1h) | ✅ Activo (mensajes a mejorar) |
-| Actualización optimista de estados | ✅ Activo |
-| Eliminación de reuniones | ✅ Activo |
-| Webhook Slack automático | ✅ Activo |
-| Anti-duplicados (webhook + Excel) | ✅ Activo (con bug) |
-| Importador Excel (.xlsx/.xls/.csv) | ✅ Activo |
-| Parser de mensaje Slack manual | ✅ Activo |
-| Sistema de Toasts (feedback visual) | ✅ Activo |
-| Skeletons de carga | ✅ Activo |
+| Auth Google OAuth (dominio @thegrowth.pro) | OK |
+| Perfil SDR (nombre para mensajes WA) | OK |
+| Dashboard mobile-first dark mode industrial | OK |
+| FilterBar 2 filas (generales + dias L-V) | OK |
+| Filtro Por Avisar con necesita_confirmacion | OK |
+| Filtro por dia de semana (L-V) + Todos | OK |
+| Tab automatico al dia actual | OK |
+| Realtime Supabase (auto-refresh) | OK |
+| Tarjetas: cliente, empresa prospecto, SDR, cargo, telefono, Meet | OK |
+| Botones WhatsApp (Post / 24h / 1h) con templates oficiales | OK |
+| Actualizacion optimista de estados | OK |
+| Eliminacion de reuniones | OK |
+| Webhook Slack - parser robusto + strip markdown | OK |
+| Webhook Slack - link Meet regex estricto | OK |
+| Webhook Slack - Contexto Reunion con espacio opcional | OK |
+| Webhook Slack - anti-duplicados | OK |
+| Webhook Slack - Reagendamiento (UPDATE vs INSERT) | OK |
+| Webhook usa SUPABASE_SERVICE_ROLE_KEY | OK |
+| Importador Excel (.xlsx/.xls/.csv) | OK |
+| Importador - telefonos con notacion cientifica | OK |
+| Importador - SDR desde perfil logueado (sin hardcode) | OK |
+| Parser Slack manual (textarea) | OK |
+| Cliente dinamico para cualquier empresa TGP | OK |
+| Sistema de Toasts | OK |
+| Skeletons de carga | OK |
 
 ---
 
-## 8. 🔴 Bugs Activos a Corregir (Priorizados)
+## 11. Variables de Entorno (.env.local)
 
----
-
-### BUG #1 — Filtro "Por Avisar" tiene lógica incorrecta
-**Archivo:** `hooks/useReuniones.ts` → función `fetchReuniones()` (línea ~102-106)
-**Archivo secundario:** `components/FilterBar.tsx` (label del filtro)
-
-**Problema actual:**
-El filtro muestra **todas** las reuniones con `estado_post_llamada = 'pendiente'`, sin importar cuándo se agendaron ni si tienen teléfono.
-
-**Comportamiento deseado:**
-- Solo mostrar reuniones que **acaban de ser agendadas** (via Slack o importación)
-- Solo si el prospecto **tiene teléfono** (`telefono IS NOT NULL AND telefono != ''`)
-- El propósito es: el SDR manda el mensaje de confirmación inmediato post-llamada
-- Una vez marcado como `'enviado'`, la reunión sale del filtro y queda en el tab del día que le corresponde
-
-**Lógica sugerida:**
 ```
-estado_post_llamada = 'pendiente'
-AND telefono IS NOT NULL AND telefono != ''
-AND created_at >= NOW() - INTERVAL '24 hours'   ← distingue "nueva" vs "vieja pendiente"
-```
-O alternativamente, agregar columna booleana `necesita_confirmacion` a la tabla para control explícito.
-
----
-
-### BUG #2 — Reuniones se registran duplicadas
-**Archivo:** `app/api/webhook/slack/route.ts` (línea ~135-156)
-**Archivo:** `components/ImportExcelModal.tsx` (línea ~458-481)
-
-**Problema actual:**
-El check de duplicados compara exactamente `nombre_prospecto + fecha_reunion + hora_reunion`. Si la hora viene en formato `HH:mm` (sin segundos) en un caso y `HH:mm:ss` en el otro, el match falla y se inserta dos veces.
-
-**Ejemplo del fallo:**
-- Webhook guarda `hora_reunion = '10:00'`
-- Importador busca con `hora_reunion = '10:00:00'`
-- No coincide → INSERT duplicado
-
-**Fix requerido:**
-Normalizar la hora a `HH:mm:ss` antes del check en **ambos lugares**. Función de normalización:
-```typescript
-const normalizarHora = (h: string) => h.length === 5 ? `${h}:00` : h
-```
-
----
-
-### BUG #3 — Mensajes de WhatsApp necesitan estructura definida
-**Archivo:** `lib/utils.ts` → función `buildWhatsAppMessage()` (línea ~59-92)
-
-**Problema actual:**
-Los 3 mensajes (post_llamada, 24h, 1h) tienen texto genérico que no refleja el tono/estructura real que el SDR usa.
-
-**Fix requerido:**
-Redefinir el texto exacto de los 3 mensajes. El usuario debe proveer el template exacto. Variables disponibles:
-- `primerNombre` — primer nombre del prospecto
-- `fechaTexto` — fecha formateada en español ("Mañana, 14:00" / "lunes 13 de mayo, 14:00")
-- `linkMeet` — URL de Google Meet (opcional)
-
----
-
-### BUG #4 — Token CSS `--accent-red` no definido
-**Archivo:** `app/globals.css` → bloque `:root` (línea ~7-33)
-**Afecta:** `components/MeetingCard.tsx` (botón eliminar, línea 95)
-
-**Problema:** El botón de eliminar usa `color: 'var(--accent-red)'` pero ese token CSS no existe en `:root`. Se renderiza sin color.
-
-**Fix:** Agregar en `:root`:
-```css
---accent-red: #f85149;
---accent-red-glow: rgba(248, 81, 73, 0.4);
-```
-
----
-
-### BUG #5 — Webhook usa clave pública de Supabase en servidor
-**Archivo:** `app/api/webhook/slack/route.ts` (líneas 4-7)
-
-**Problema:**
-```typescript
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!   // ← ANON KEY en servidor
-)
-```
-El webhook es una **Route Handler de Next.js** (corre en servidor). Debe usar `SUPABASE_SERVICE_ROLE_KEY` (variable privada, sin `NEXT_PUBLIC_`) para garantizar permisos de escritura independientemente de las políticas RLS.
-
-**Fix:**
-```typescript
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!   // ← Service Role (privada)
-)
-```
-Y agregar `SUPABASE_SERVICE_ROLE_KEY=...` al `.env.local`.
-
----
-
-## 9. Variables de Entorno Requeridas (`.env.local`)
-
-```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...       ← Necesaria para BUG #5
-SLACK_BOT_TOKEN=xoxb-...              ← Para reacciones y mensajes de Slack
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SLACK_BOT_TOKEN=xoxb-...
 ```
+
+Las mismas variables deben estar en la plataforma de deploy (Vercel/Railway).
 
 ---
 
-## 10. Notas de Arquitectura Importantes
+## 12. Script SQL
 
-- **No usar `cd` en comandos PowerShell** — el entorno lo requiere.
-- **El proyecto Next.js vive en `tgp-dashboard/`**, no en la raíz del repo.
-- Hay una raíz del repo con carpetas `app/`, `components/`, etc. que son de un proyecto anterior/diferente y **no se usan**. Todo el trabajo activo está en `tgp-dashboard/`.
-- **Next.js versión 16** (cutting edge, no es Next.js 13/14/15). Consultar `tgp-dashboard/node_modules/next/dist/docs/` ante cualquier duda de API.
-- **Supabase Realtime** está activo con canal `'reuniones-realtime'` — cualquier cambio en la tabla `reuniones` dispara un re-fetch automático en todos los clientes conectados.
-- Los **mensajes de WhatsApp** se abren via `window.open()` con la URL `https://api.whatsapp.com/send` — no hay API de WhatsApp Business integrada, es redirección al app nativo.
-- La **hidratación SSR/Client** está manejada con `isMounted` en `useReuniones.ts` para evitar mismatch entre el filtro inicial del servidor y el cliente.
+Archivo: supabase-scripts/schema.sql
+Uso: Copiar completo y pegar en SQL Editor de Supabase. Es idempotente.
+Contiene: CREATE TABLE IF NOT EXISTS, ALTER TABLE ADD COLUMN IF NOT EXISTS, indices, RLS policies, Realtime (con check de existencia), backfill de datos.
+
+---
+
+## 13. Notas de Arquitectura
+
+- El proyecto Next.js vive EXCLUSIVAMENTE en tgp-dashboard/
+- Next.js version 16 — revisar node_modules/next/dist/docs/ antes de usar APIs
+- Hidratacion SSR/Client manejada con isMounted en useReuniones.ts
+- Realtime activo — cualquier cambio en la tabla dispara re-fetch en todos los dashboards
+- WhatsApp via window.open() con api.whatsapp.com/send (no hay API Business)
+- notas guarda el texto raw completo del bot (trazabilidad total)
+- cliente (empresa de TGP) es DISTINTO de empresa (empresa del prospecto)
+  Ejemplo: cliente = "Edenred Chile", empresa = "FORUS S.A"
+- sdr_name viene siempre del perfil en Supabase, nunca hardcodeado

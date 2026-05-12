@@ -33,7 +33,7 @@ export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reun
             key={key}
             role="tab"
             aria-selected={filtroActivo === key}
-            className={`tab-item tab-item-general ${filtroActivo === key ? 'active' : ''}`}
+            className={`tab-item tab-item-general ${key === 'por_enviar' ? 'tab-item-alert' : ''} ${filtroActivo === key ? 'active' : ''}`}
             onClick={() => onFiltroChange(key)}
           >
             <span className="tab-label-full">{label}</span>
