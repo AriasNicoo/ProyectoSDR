@@ -159,8 +159,8 @@ export async function POST(req: Request) {
           }
         }
 
-        // Notas = contexto limpio (sin el bloque [Cliente: ...] del sistema anterior)
-        const notas = contexto || null;
+        // Notas = texto raw completo del ticket del bot (para trazabilidad total)
+        const notas = texto.trim();
 
         // ── ANTI-DUPLICADOS ─────────────────────────────────────────────
         const { data: existingMeeting } = await supabase
@@ -186,23 +186,27 @@ export async function POST(req: Request) {
         }
 
         // ── INSERCIÓN ───────────────────────────────────────────────────
+        // Prioridad: si hay teléfono → necesita confirmación WhatsApp
+        //            si no hay teléfono → agendado por mail, no necesita WA
+        const hayTelefono = !!(telefono && telefono.length > 5);
+
         const { error } = await supabase.from('reuniones').insert([{
-          titulo_reunion:    empresa ? `Reunión con ${empresa}` : primeraLinea,
-          email_origen:      emailOrigen,
-          empresa:           empresa,
-          nombre_prospecto:  nombre,
-          correos_contacto:  correosContacto,
-          cargo:             cargo,
-          telefono:          telefono || null,
-          fecha_reunion:     fecha,
-          hora_reunion:      hora,
-          agendado_para:     agendadoPara,
-          canal:             canal,
-          notas:             notas,
-          link_meet:         linkMeet,
-          sdr_name:          sdrName,
-          cliente:           cliente,
-          // necesita_confirmacion = true por DEFAULT en la BD
+          titulo_reunion:          empresa ? `Reunión con ${empresa}` : primeraLinea,
+          email_origen:            emailOrigen,
+          empresa:                 empresa,
+          nombre_prospecto:        nombre,
+          correos_contacto:        correosContacto,
+          cargo:                   cargo,
+          telefono:                telefono || null,
+          fecha_reunion:           fecha,
+          hora_reunion:            hora,
+          agendado_para:           agendadoPara,
+          canal:                   canal,
+          notas:                   notas,
+          link_meet:               linkMeet,
+          sdr_name:                sdrName,
+          cliente:                 cliente,
+          necesita_confirmacion:   hayTelefono,  // true=WA pendiente, false=mail
         }]);
 
         if (error) {
