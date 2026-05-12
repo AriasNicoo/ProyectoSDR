@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 async function addSlackReaction(channelId: string, timestamp: string, emoji: string) {
@@ -34,10 +34,65 @@ async function sendSlackConfirmation(channelId: string, text: string, threadTs?:
   }
 }
 
+/**
+ * Extrae un campo de una línea con formato "Clave: Valor".
+ * Maneja variantes de acentos (ej: "Día" / "Dia").
+ */
+function extract(texto: string, regex: RegExp): string | null {
+  const match = texto.match(regex);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Extrae texto multilínea entre dos marcadores.
+ * Captura todo hasta el siguiente campo conocido o fin de texto.
+ */
+function extractMultiline(texto: string, regex: RegExp): string | null {
+  const match = texto.match(regex);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Normaliza el número de teléfono al formato internacional chileno 569XXXXXXXX.
+ */
+function normalizarTelefono(raw: string | null): string {
+  if (!raw || raw.toUpperCase() === 'N/A') return '';
+
+  let phone = raw.replace(/\D/g, '');
+  if (phone.length === 0) return '';
+
+  // Si hay duplicación (ej: 569...569...), tomar solo la primera mitad
+  if (phone.length > 12 && phone.startsWith(phone.substring(Math.floor(phone.length / 2)))) {
+    phone = phone.substring(0, Math.floor(phone.length / 2));
+  } else if (phone.length > 15) {
+    phone = phone.substring(0, 11);
+  }
+
+  if (phone.length === 8)                             phone = '569' + phone;
+  else if (phone.length === 9 && phone.startsWith('9')) phone = '56' + phone;
+  else if (!phone.startsWith('56') && phone.length > 0) phone = '56' + phone;
+
+  return phone;
+}
+
+/**
+ * Convierte una fecha con "/" a formato "YYYY-MM-DD".
+ */
+function normalizarFecha(fecha: string): string {
+  if (!fecha.includes('/')) return fecha;
+  const parts = fecha.split('/');
+  if (parts.length !== 3) return fecha;
+  // DD/MM/YYYY → YYYY-MM-DD
+  return parts[0].length === 4
+    ? `${parts[0]}-${parts[1]}-${parts[2]}`  // YYYY/MM/DD
+    : `${parts[2]}-${parts[1]}-${parts[0]}`; // DD/MM/YYYY
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // Handshake de verificación de URL de Slack
     if (body.type === 'url_verification') {
       return new Response(body.challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
@@ -45,93 +100,69 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Validar que sea un mensaje y tenga la cadena "SDR:" en cualquier parte
+      // Solo procesar mensajes humanos que contengan "SDR:"
       if (event.type === 'message' && !event.bot_id && event.text && /SDR:\s*.+/i.test(event.text)) {
-        const texto = event.text;
+        const texto: string = event.text;
 
         await addSlackReaction(event.channel, event.ts, 'rocket');
 
-        const extract = (regex: RegExp) => {
-          const match = texto.match(regex);
-          return match ? match[1].trim() : null;
-        };
+        // ── EXTRACCIÓN DE CAMPOS ────────────────────────────────────────
 
-        const lineas = texto.split('\n').map((l: string) => l.trim()).filter((l: string) => l.length > 0);
-        const titulo = (lineas.length > 0 && !lineas[0].includes(':')) ? lineas[0] : 'Reunión Agendada';
-
-        const emailOrigen = extract(/Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/i);
-        const empresa = extract(/Empresa:\s*(.+)/i);
-        const nombre = extract(/Nombre Contacto:\s*(.+)/i) || 'Prospecto';
-        const correosContacto = extract(/Correos Contacto:\s*(.+)/i);
-        const cargo = extract(/Cargo:\s*(.+)/i);
-        let telefono = extract(/Tel[eé]fono:\s*(.+)/i);
-        const diaHoraStr = extract(/D[ií]a y Hora:\s*(.+)/i) || '';
-        const agendadoPara = extract(/Agendado para:\s*(.+)/i);
-        const canal = extract(/Canal:\s*(.+)/i);
-        const sdrName = extract(/SDR:\s*(.+)/i);
-        const linkMeet = extract(/Link a Google Meet:\s*(https?:\/\/\S+)/i);
-        const cliente = extract(/Cliente:\s*(.+)/i);
-        
-        // --- INTELIGENCIA: Extraer cliente de la primera línea (Agendamiento/Reagendamiento) ---
-        let clienteFinal = cliente;
-        if (!clienteFinal && titulo && /^(Reagendamiento|Agendamiento)/i.test(titulo)) {
-          // Quitamos las palabras clave para quedarnos solo con el nombre del cliente
-          clienteFinal = titulo.replace(/^(Reagendamiento|Agendamiento)\s+/i, '').trim();
-          if (clienteFinal.length < 2 || clienteFinal.toLowerCase() === 'reunión agendada') {
-            clienteFinal = null;
-          }
+        // Cliente: viene en la PRIMERA LÍNEA como "Reunión {Cliente}"
+        // Ej: "Reunión Edenred Chile" → cliente = "Edenred Chile"
+        const primeraLinea = texto.split('\n')[0].trim();
+        let cliente: string | null = null;
+        const clienteMatch = primeraLinea.match(/^(?:Reuni[oó]n|Reagendamiento|Agendamiento)\s+(.+)/i);
+        if (clienteMatch && clienteMatch[1].trim().length > 1) {
+          cliente = clienteMatch[1].trim();
         }
 
-        // Contexto multi-línea
-        const contextoMatch = texto.match(/Contexto Reunion:\s*([\s\S]+?)(?=\nLink a Google Meet:|\nSDR:|\n$|$)/i);
-        const contexto = contextoMatch ? contextoMatch[1].trim() : null;
+        const empresa        = extract(texto, /^Empresa:\s*(.+)/im);
+        const nombre         = extract(texto, /^Nombre Contacto:\s*(.+)/im) || 'Prospecto';
+        const correosContacto= extract(texto, /^Correos Contacto:\s*(.+)/im);
+        const cargo          = extract(texto, /^Cargo:\s*(.+)/im);
+        const telefonoRaw    = extract(texto, /^Tel[eé]fono:\s*(.+)/im);
+        const diaHoraStr     = extract(texto, /^D[ií]a y Hora:\s*(.+)/im) || '';
+        const agendadoPara   = extract(texto, /^Agendado para:\s*(.+)/im);
+        const canal          = extract(texto, /^Canal:\s*(.+)/im);
+        const sdrName        = extract(texto, /^SDR:\s*(.+)/im);
+        const emailOrigen    = extract(texto, /^Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/im);
 
-        let notasFinal = contexto;
-        if (clienteFinal) {
-          notasFinal = notasFinal ? `[Cliente: ${clienteFinal}] ${notasFinal}` : `[Cliente: ${clienteFinal}]`;
-        }
+        // Link de Google Meet: captura la URL en la misma línea o línea siguiente
+        // Regex tolerante a espacios/saltos antes de la URL
+        const linkMeet = extract(texto, /^Link a Google Meet:\s*(https?:\/\/\S+)/im)
+          ?? extractMultiline(texto, /Link a Google Meet:\s*\n?\s*(https?:\/\/\S+)/im);
 
-        if (telefono && telefono.toUpperCase() === 'N/A') {
-          telefono = '';
-        } else if (telefono) {
-          telefono = telefono.replace(/\D/g, ''); 
-          // Si el teléfono se duplicó (ej: 569...569...), tomamos solo la primera parte
-          if (telefono.length > 12 && telefono.startsWith(telefono.substring(telefono.length / 2))) {
-            telefono = telefono.substring(0, telefono.length / 2);
-          } else if (telefono.length > 15) {
-            telefono = telefono.substring(0, 11); // Fallback de seguridad
-          }
-          
-          if (telefono.length === 8) telefono = '569' + telefono;
-          else if (telefono.length === 9 && telefono.startsWith('9')) telefono = '56' + telefono;
-          else if (!telefono.startsWith('56') && telefono.length > 0) telefono = '56' + telefono;
-        }
+        // Contexto multilínea: captura todo entre "Contexto Reunion:" y el siguiente campo conocido o fin
+        const contexto = extractMultiline(
+          texto,
+          /^Contexto Reunion:\s*\n?([\s\S]+?)(?=\n(?:Link a Google Meet:|SDR:|$))/im
+        );
 
+        // ── NORMALIZACIÓN ───────────────────────────────────────────────
+
+        const telefono = normalizarTelefono(telefonoRaw);
+
+        // Parsear fecha y hora desde "YYYY-MM-DD HH:mm:ss" o variantes
         let fecha = new Date().toISOString().split('T')[0];
-        let hora = '10:00:00';
+        let hora  = '10:00:00';
+
         const dateParts = diaHoraStr.match(/(\d{4}-\d{2}-\d{2}|\d{2}\/\d{2}\/\d{4})\s*(\d{2}:\d{2}(:\d{2})?)/);
         if (dateParts) {
-          fecha = dateParts[1];
-          hora = dateParts[2];
-          if (hora.length === 5) hora += ':00'; 
+          fecha = normalizarFecha(dateParts[1]);
+          hora  = dateParts[2].length === 5 ? dateParts[2] + ':00' : dateParts[2];
         } else {
           const partes = diaHoraStr.split(/\s+/);
           if (partes.length >= 2) {
-            fecha = partes[0];
-            hora = partes[1].substring(0, 5) + ':00';
+            fecha = normalizarFecha(partes[0]);
+            hora  = partes[1].substring(0, 5) + ':00';
           }
         }
 
-        if (fecha.includes('/')) {
-          const [dia, mes, anio] = fecha.split('/');
-          fecha = `${anio}-${mes}-${dia}`;
-        } else if (!fecha) {
-          fecha = new Date().toISOString().split('T')[0];
-          hora = '10:00:00';
-        }
+        // Notas = contexto limpio (sin el bloque [Cliente: ...] del sistema anterior)
+        const notas = contexto || null;
 
-        // --- ANTI-DUPLICADOS ---
-        // Verificamos si ya existe una reunión con el mismo nombre, fecha y hora
+        // ── ANTI-DUPLICADOS ─────────────────────────────────────────────
         const { data: existingMeeting } = await supabase
           .from('reuniones')
           .select('id, link_meet')
@@ -141,42 +172,44 @@ export async function POST(req: Request) {
           .maybeSingle();
 
         if (existingMeeting) {
+          // Si ya existe pero no tenía link de Meet, actualizarlo
           if (linkMeet && !existingMeeting.link_meet) {
-            const { error: updateErr } = await supabase
+            await supabase
               .from('reuniones')
-              .update({ link_meet: linkMeet, notas: notasFinal })
+              .update({ link_meet: linkMeet, notas })
               .eq('id', existingMeeting.id);
-            if (!updateErr) {
-              console.log('Reunión existente actualizada con link de Meet con éxito.');
-              return NextResponse.json({ ok: true, updated: 'link_meet' }, { status: 200 });
-            }
+            console.log('Reunión existente actualizada con link de Meet.');
+            return NextResponse.json({ ok: true, updated: 'link_meet' }, { status: 200 });
           }
           console.log('Reunión duplicada detectada, ignorando...');
           return NextResponse.json({ ok: true, skipped: 'duplicate' }, { status: 200 });
         }
 
+        // ── INSERCIÓN ───────────────────────────────────────────────────
         const { error } = await supabase.from('reuniones').insert([{
-          titulo_reunion: titulo,
-          email_origen: emailOrigen,
-          empresa: empresa,
-          nombre_prospecto: nombre,
-          correos_contacto: correosContacto,
-          cargo: cargo,
-          telefono: telefono,
-          fecha_reunion: fecha,
-          hora_reunion: hora,
-          agendado_para: agendadoPara,
-          canal: canal,
-          notas: notasFinal, 
-          link_meet: linkMeet,
-          sdr_name: sdrName
+          titulo_reunion:    empresa ? `Reunión con ${empresa}` : primeraLinea,
+          email_origen:      emailOrigen,
+          empresa:           empresa,
+          nombre_prospecto:  nombre,
+          correos_contacto:  correosContacto,
+          cargo:             cargo,
+          telefono:          telefono || null,
+          fecha_reunion:     fecha,
+          hora_reunion:      hora,
+          agendado_para:     agendadoPara,
+          canal:             canal,
+          notas:             notas,
+          link_meet:         linkMeet,
+          sdr_name:          sdrName,
+          cliente:           cliente,
+          // necesita_confirmacion = true por DEFAULT en la BD
         }]);
 
         if (error) {
           console.error('Error insertando en Supabase:', error);
           await sendSlackConfirmation(event.channel, `❌ Error al guardar a ${nombre}. Error: ${error.message}`, event.ts);
         } else {
-          await sendSlackConfirmation(event.channel, `✅ ¡Listo! La reunión con ${nombre} ya está en el Dashboard.`, event.ts);
+          await sendSlackConfirmation(event.channel, `✅ ¡Listo! La reunión con ${nombre} (${empresa ?? 'sin empresa'}) ya está en el Dashboard.`, event.ts);
         }
       }
     }

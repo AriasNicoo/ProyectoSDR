@@ -26,6 +26,10 @@ export interface Reunion {
   canal: string | null
   notas: string | null        // Contexto
   link_meet: string | null    // URL de Google Meet
+
+  // Cliente = empresa que contrata al SDR (ej: "Edenred Chile")
+  // Distinto de `empresa` = empresa del prospecto (ej: "FORUS S.A")
+  cliente: string | null
   
   // Estado de los 3 mensajes de seguimiento
   estado_post_llamada: EstadoMensaje

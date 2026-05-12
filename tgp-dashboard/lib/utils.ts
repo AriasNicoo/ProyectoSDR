@@ -55,38 +55,51 @@ export function formatearFechaReunion(fecha: string, hora?: string): string {
 
 /**
  * Construye el mensaje de WhatsApp según el tipo de seguimiento.
+ * Usa los templates oficiales del equipo SDR de The Growth Pro.
  */
 export function buildWhatsAppMessage(
   tipo: 'post_llamada' | '24h' | '1h',
   nombre: string,
   fecha: string,
   hora: string,
-  linkMeet?: string | null
+  linkMeet?: string | null,
+  sdrName?: string | null,
+  cliente?: string | null
 ): string {
-  const fechaTexto = formatearFechaReunion(fecha, hora)
-  
-  // Extraer el primer nombre de forma segura y amigable
   const primerNombre = nombre ? nombre.trim().split(/\s+/)[0] : 'prospecto'
+  const horaFormateada = hora ? hora.substring(0, 5) : ''
+  const fechaTexto = formatearFechaReunion(fecha, hora)
+  const sdr = sdrName ? sdrName.trim().split(/\s+/)[0] : 'tu SDR'
+  const clienteNombre = cliente || 'nuestra empresa'
+  const linkTexto = linkMeet ? linkMeet : '(link no disponible)'
 
   switch (tipo) {
     case 'post_llamada':
-      const linkTexto = linkMeet ? `\n\nAquí tienes el enlace de Google Meet para nuestra reunión:\n👉 ${linkMeet}\n\n¡Por favor, dale que SÍ en tu invitación de calendario al tiro para confirmar asistencia! 📅` : ''
       return (
-        `Hola ${primerNombre}! 👋 Gracias por tu tiempo hoy.\n\n` +
-        `Me dio mucho gusto conversar contigo. ` +
-        `Quedamos agendados para el ${fechaTexto}.${linkTexto}\n\n¡Cualquier duda estoy disponible, nos vemos pronto! 🚀`
+        `Hola ${primerNombre}, por acá ${sdr} de ${clienteNombre}. ` +
+        `Tal como conversamos por teléfono, la reunión quedó agendada para el día ${fechaTexto}. ` +
+        (linkMeet
+          ? `Te adjunto el link para que puedas aceptar en tu calendario: ${linkTexto}. `
+          : '') +
+        `¡Saludos!`
       )
+
     case '24h':
-      const link24h = linkMeet ? `\n\nEnlace de acceso a Meet:\n👉 ${linkMeet}` : ''
       return (
-        `Hola ${primerNombre}! ⏰ Solo quería recordarte que nuestra reunión es mañana.\n\n` +
-        `Tenemos agendada para el ${fechaTexto}.${link24h}\n\n¿Todo bien por tu parte? ¡Nos vemos pronto!`
+        `Hola ${primerNombre}, ¿cómo estás? Te escribo de ${clienteNombre} para recordarte nuestra reunión de mañana a las ${horaFormateada}. ` +
+        (linkMeet
+          ? `Te dejo el link de acceso a mano para que nos conectemos: ${linkTexto}. `
+          : '') +
+        `¡Que tengas buen día!`
       )
+
     case '1h':
-      const link1h = linkMeet ? `\n\nEnlace para ingresar directo:\n👉 ${linkMeet}` : ''
       return (
-        `Hola ${primerNombre}! 🔔 Nuestra reunión es en 1 hora.\n\n` +
-        `Hora: ${fechaTexto}.${link1h}\n\n¡Aquí estaré listo! Cualquier cambio, avísame.`
+        `Hola ${primerNombre}, ¡buen día! Te recuerdo que en un ratito, a las ${horaFormateada}, tenemos nuestra reunión. ` +
+        (linkMeet
+          ? `Nos vemos en este link: ${linkTexto}. `
+          : '') +
+        `¡Nos vemos ahí!`
       )
   }
 }

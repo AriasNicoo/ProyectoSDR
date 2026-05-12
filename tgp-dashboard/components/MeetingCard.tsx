@@ -13,16 +13,16 @@ interface MeetingCardProps {
 const TIPOS_MENSAJE: TipoMensaje[] = ['post_llamada', '24h', '1h']
 
 export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
-  const hasPhone = !!reunion.telefono && reunion.telefono.length > 5
+  const hasPhone = !!reunion.telefono && reunion.telefono.trim().length > 5
 
-  // Extraer el cliente de las notas si viene con el formato [Cliente: Nombre | ...]
-  let clienteName = 'N/A'
-  if (reunion.notas) {
+  // Cliente: viene del campo explícito `reunion.cliente` (ej: "Edenred Chile")
+  // Fallback: intentar extraer del campo notas si el registro es antiguo
+  let clienteName = reunion.cliente || null
+  if (!clienteName && reunion.notas) {
     const match = reunion.notas.match(/Cliente:\s*([^|\]]+)/i)
-    if (match) {
-      clienteName = match[1].trim()
-    }
+    if (match) clienteName = match[1].trim()
   }
+  clienteName = clienteName || 'N/A'
 
   return (
     <article className="meeting-card" aria-label={`Reunión con ${reunion.nombre_prospecto}`}>
@@ -46,6 +46,10 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
         <div className="detail-item">
           <span className="detail-label">SDR</span>
           <span className="detail-value">{reunion.sdr_name || 'N/A'}</span>
+        </div>
+        <div className="detail-item">
+          <span className="detail-label">Empresa Prospecto</span>
+          <span className="detail-value" style={{ color: 'var(--accent-blue)' }}>{reunion.empresa || 'N/A'}</span>
         </div>
         <div className="detail-item">
           <span className="detail-label">Cargo</span>

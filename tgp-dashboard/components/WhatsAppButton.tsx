@@ -34,7 +34,15 @@ export function WhatsAppButton({ reunion, tipo, onSent }: WhatsAppButtonProps) {
     setLoading(true)
 
     if (hasPhone) {
-      const mensaje = buildWhatsAppMessage(tipo, reunion.nombre_prospecto, reunion.fecha_reunion, reunion.hora_reunion, reunion.link_meet)
+      const mensaje = buildWhatsAppMessage(
+        tipo,
+        reunion.nombre_prospecto,
+        reunion.fecha_reunion,
+        reunion.hora_reunion,
+        reunion.link_meet,
+        reunion.sdr_name,
+        reunion.cliente
+      )
       const url = buildWhatsAppURL(reunion.telefono!, mensaje)
       window.open(url, '_blank', 'noopener,noreferrer')
     } else {
