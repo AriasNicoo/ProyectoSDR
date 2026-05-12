@@ -109,8 +109,8 @@ export async function POST(req: Request) {
         // ── EXTRACCIÓN DE CAMPOS ────────────────────────────────────────
 
         // Cliente: viene en la PRIMERA LÍNEA como "Reunión {Cliente}"
-        // Ej: "Reunión Edenred Chile" → cliente = "Edenred Chile"
-        const primeraLinea = texto.split('\n')[0].trim();
+        // Limpiamos el markdown de Slack (*bold*, _italic_) antes de parsear
+        const primeraLinea = texto.split('\n')[0].trim().replace(/[*_~`]/g, '').trim();
         let cliente: string | null = null;
         const clienteMatch = primeraLinea.match(/^(?:Reuni[oó]n|Reagendamiento|Agendamiento)\s+(.+)/i);
         if (clienteMatch && clienteMatch[1].trim().length > 1) {
@@ -128,15 +128,16 @@ export async function POST(req: Request) {
         const sdrName        = extract(texto, /^SDR:\s*(.+)/im);
         const emailOrigen    = extract(texto, /^Desde qu[eé] mail sali[oó] la reuni[oó]n:\s*(.+)/im);
 
-        // Link de Google Meet: captura la URL en la misma línea o línea siguiente
-        // Regex tolerante a espacios/saltos antes de la URL
-        const linkMeet = extract(texto, /^Link a Google Meet:\s*(https?:\/\/\S+)/im)
-          ?? extractMultiline(texto, /Link a Google Meet:\s*\n?\s*(https?:\/\/\S+)/im);
+        // Link de Google Meet: busca SOLO el formato real de Google Meet
+        // (meet.google.com/xxx-xxxx-xxx) ignorando el texto de preview que
+        // Slack concatena sin espacio después de la URL.
+        const meetUrlMatch = texto.match(/https?:\/\/meet\.google\.com\/[a-z0-9]+-[a-z0-9]+-[a-z0-9]+/i);
+        const linkMeet = meetUrlMatch ? meetUrlMatch[0] : null;
 
-        // Contexto multilínea: captura todo entre "Contexto Reunion:" y el siguiente campo conocido o fin
+        // Contexto multilínea: acepta espacio opcional antes del colon ("Contexto Reunion :")
         const contexto = extractMultiline(
           texto,
-          /^Contexto Reunion:\s*\n?([\s\S]+?)(?=\n(?:Link a Google Meet:|SDR:|$))/im
+          /^Contexto Reunion\s*:\s*\n?([\s\S]+?)(?=\n(?:Link a Google Meet:|SDR:|$))/im
         );
 
         // ── NORMALIZACIÓN ───────────────────────────────────────────────
