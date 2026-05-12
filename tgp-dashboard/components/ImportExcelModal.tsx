@@ -383,11 +383,10 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
             rawTelefono = ''
           }
 
-          // SDR Name por defecto si está vacío o mal alineado
+          // SDR Name: si la columna está vacía o desplazada, usar el nombre del SDR logueado
           const rawSdrStr = rawSdr ? rawSdr.toString().trim() : ''
           if (!rawSdrStr || rawSdrStr.toLowerCase().includes('beta')) {
-            const foundSdr = rowValues.find(v => v && (v.toLowerCase().includes('nicolas') || v.toLowerCase().includes('arias')))
-            if (foundSdr) rawSdr = foundSdr
+            rawSdr = userSdrName || 'SDR'
           }
 
           // Formateo final de campos
@@ -621,7 +620,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
                   <textarea
                     value={pastedText}
                     onChange={(e) => setPastedText(e.target.value)}
-                    placeholder={`Ejemplo:\nReunión Agendada\nEmpresa: Google\nNombre Contacto: John Doe\nDía y Hora: 2026-06-15 14:00\nSDR: ${userSdrName || 'Nicolas Arias'}`}
+                    placeholder={`Ejemplo:\nReunión Agendada\nEmpresa: Google\nNombre Contacto: John Doe\nDía y Hora: 2026-06-15 14:00\nSDR: ${userSdrName || 'Tu Nombre'}`}
                     style={{
                       width: '100%',
                       height: '160px',
