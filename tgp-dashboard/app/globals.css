@@ -111,6 +111,21 @@ body {
 }
 .tab-list::-webkit-scrollbar { display: none; }
 
+/* Fila superior: filtros generales (Por Avisar + Todos) */
+.tab-list-top {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 10px;
+}
+
+.tab-item-general {
+  min-width: 130px;
+  flex: 0 1 auto;
+}
+
 .tab-item {
   flex: 1;
   min-width: 60px;

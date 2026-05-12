@@ -9,14 +9,15 @@ interface FilterBarProps {
   reuniones: Reunion[]
 }
 
-// Usamos 'Miercoles' sin tilde para descartar definitivamente errores de codificación 
-// de archivos en sistemas Windows/ANSI que rompen la hidratación de React en Next.js
-const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
-  { key: 'por_enviar', label: '📤 Por Enviar', short: '📤' },
-  { key: 'todos',     label: 'Todos',     short: 'T' },
+const FILTROS_GENERALES: { key: FiltroFecha; label: string }[] = [
+  { key: 'por_enviar', label: '📤 Por Avisar' },
+  { key: 'todos',      label: 'Todos' },
+]
+
+const FILTROS_DIAS: { key: FiltroFecha; label: string; short: string }[] = [
   { key: 'lunes',     label: 'Lunes',     short: 'L' },
   { key: 'martes',    label: 'Martes',    short: 'M' },
-  { key: 'miercoles', label: 'Miercoles', short: 'M' },
+  { key: 'miercoles', label: 'Miercoles', short: 'X' },
   { key: 'jueves',    label: 'Jueves',    short: 'J' },
   { key: 'viernes',   label: 'Viernes',   short: 'V' },
 ]
@@ -24,8 +25,28 @@ const FILTROS: { key: FiltroFecha; label: string; short: string }[] = [
 export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reuniones }: FilterBarProps) {
   return (
     <div className="tab-navigation">
+
+      {/* FILA SUPERIOR: Filtros generales (Por Avisar + Todos) */}
+      <div className="tab-list-top">
+        {FILTROS_GENERALES.map(({ key, label }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={filtroActivo === key}
+            className={`tab-item tab-item-general ${filtroActivo === key ? 'active' : ''}`}
+            onClick={() => onFiltroChange(key)}
+          >
+            <span className="tab-label-full">{label}</span>
+            {filtroActivo === key && reuniones.length > 0 && (
+              <span className="tab-badge">{reuniones.length}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* FILA INFERIOR: Días de la semana (L-V) */}
       <div className="tab-list" role="tablist">
-        {FILTROS.map(({ key, label, short }) => (
+        {FILTROS_DIAS.map(({ key, label, short }) => (
           <button
             key={key}
             role="tab"
@@ -41,7 +62,7 @@ export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reun
           </button>
         ))}
       </div>
-      
+
       <button
         className="fab-add"
         onClick={onAgregarReunion}
