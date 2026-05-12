@@ -163,7 +163,55 @@ export async function POST(req: Request) {
         // Notas = texto raw completo del ticket del bot (para trazabilidad total)
         const notas = texto.trim();
 
-        // ── ANTI-DUPLICADOS ─────────────────────────────────────────────
+        // Prioridad: si hay teléfono → necesita confirmación WhatsApp
+        //            si no hay teléfono → agendado por mail, no necesita WA
+        const hayTelefono = !!(telefono && telefono.length > 5);
+
+        // ── DETECTAR REAGENDAMIENTO ──────────────────────────────────────
+        const esReagendamiento = /^Reagendamiento/i.test(primeraLinea);
+
+        if (esReagendamiento) {
+          // Buscar la reunión existente por nombre del prospecto (independiente de fecha/hora)
+          const { data: reunionExistente } = await supabase
+            .from('reuniones')
+            .select('id')
+            .eq('nombre_prospecto', nombre)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (reunionExistente) {
+            // ── ACTUALIZAR reunión existente con nueva fecha/hora y resetear estados ──
+            const { error: updateErr } = await supabase
+              .from('reuniones')
+              .update({
+                fecha_reunion:        fecha,
+                hora_reunion:         hora,
+                link_meet:            linkMeet,
+                notas:                notas,
+                agendado_para:        agendadoPara,
+                canal:                canal,
+                // Resetear estados de seguimiento para el nuevo agendamiento
+                estado_post_llamada:  'pendiente',
+                estado_24h:           'pendiente',
+                estado_1h:            'pendiente',
+                necesita_confirmacion: hayTelefono,
+              })
+              .eq('id', reunionExistente.id);
+
+            if (updateErr) {
+              console.error('Error actualizando reagendamiento:', updateErr);
+              await sendSlackConfirmation(event.channel, `❌ Error al reagendar a ${nombre}. Error: ${updateErr.message}`, event.ts);
+            } else {
+              await sendSlackConfirmation(event.channel, `🔄 ¡Reagendamiento aplicado! La reunión con ${nombre} fue actualizada al ${fecha} ${hora}.`, event.ts);
+            }
+            return NextResponse.json({ ok: true, updated: 'reagendamiento' }, { status: 200 });
+          }
+          // Si no existe la reunión previa, caer al flujo normal de inserción
+          console.log('Reagendamiento sin reunión previa encontrada, insertando como nueva...');
+        }
+
+        // ── ANTI-DUPLICADOS (para agendamientos nuevos) ──────────────────
         const { data: existingMeeting } = await supabase
           .from('reuniones')
           .select('id, link_meet')
@@ -187,10 +235,6 @@ export async function POST(req: Request) {
         }
 
         // ── INSERCIÓN ───────────────────────────────────────────────────
-        // Prioridad: si hay teléfono → necesita confirmación WhatsApp
-        //            si no hay teléfono → agendado por mail, no necesita WA
-        const hayTelefono = !!(telefono && telefono.length > 5);
-
         const { error } = await supabase.from('reuniones').insert([{
           titulo_reunion:          empresa ? `Reunión con ${empresa}` : primeraLinea,
           email_origen:            emailOrigen,
@@ -207,7 +251,7 @@ export async function POST(req: Request) {
           link_meet:               linkMeet,
           sdr_name:                sdrName,
           cliente:                 cliente,
-          necesita_confirmacion:   hayTelefono,  // true=WA pendiente, false=mail
+          necesita_confirmacion:   hayTelefono,
         }]);
 
         if (error) {
