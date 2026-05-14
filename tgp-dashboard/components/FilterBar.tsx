@@ -9,9 +9,9 @@ interface FilterBarProps {
   reuniones: Reunion[]
 }
 
-const FILTROS_GENERALES: { key: FiltroFecha; label: string }[] = [
-  { key: 'por_enviar', label: '📤 Por Avisar' },
-  { key: 'todos',      label: 'Todos' },
+const FILTROS_GENERALES: { key: FiltroFecha; label: string; short: string }[] = [
+  { key: 'por_enviar', label: '📤 Por Avisar', short: '📤 Avisar' },
+  { key: 'todos',      label: 'Todos',         short: 'Todos' },
 ]
 
 const FILTROS_DIAS: { key: FiltroFecha; label: string; short: string }[] = [
@@ -28,7 +28,7 @@ export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reun
 
       {/* FILA SUPERIOR: Filtros generales (Por Avisar + Todos) */}
       <div className="tab-list-top">
-        {FILTROS_GENERALES.map(({ key, label }) => (
+        {FILTROS_GENERALES.map(({ key, label, short }) => (
           <button
             key={key}
             role="tab"
@@ -37,6 +37,7 @@ export function FilterBar({ filtroActivo, onFiltroChange, onAgregarReunion, reun
             onClick={() => onFiltroChange(key)}
           >
             <span className="tab-label-full">{label}</span>
+            <span className="tab-label-short">{short}</span>
             {filtroActivo === key && reuniones.length > 0 && (
               <span className="tab-badge">{reuniones.length}</span>
             )}

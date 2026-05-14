@@ -207,6 +207,8 @@ body {
 @media (max-width: 480px) {
   .tab-label-full { display: none; }
   .tab-label-short { display: block; font-size: 15px; }
+  /* General tabs (Por Avisar / Todos) usan fuente más pequeña */
+  .tab-item-general .tab-label-short { font-size: 13px; font-weight: 700; }
 }
 
 /* ────────────────────────────────────────────────
