@@ -22,7 +22,9 @@
   --accent-green-glow: rgba(46, 160, 67, 0.4);
   --accent-blue:    #58a6ff;
   --accent-blue-glow: rgba(88, 166, 255, 0.4);
-  
+  --accent-red:     #ef4444;
+  --accent-red-glow: rgba(239, 68, 68, 0.4);
+
   --radius-sm:  8px;
   --radius-md:  12px;
   --radius-lg:  20px;
@@ -166,13 +168,13 @@ body {
 /* === ALERTA CRITICA: Por Avisar activo === */
 .tab-item-general.tab-item-alert.active {
   background: #B71C1C; /* Rojo menos brillante */
-  color: #000000;
+  color: #ffffff;
   border-color: #9A0007;
   box-shadow: 0 4px 18px rgba(183, 28, 28, 0.55);
   animation: pulse-alert 2s ease-in-out infinite;
 }
 .tab-item-general.tab-item-alert.active::after {
-  background: #000000;
+  background: rgba(255, 255, 255, 0.8);
   box-shadow: none;
 }
 .tab-item-general.tab-item-alert:not(.active):hover {
