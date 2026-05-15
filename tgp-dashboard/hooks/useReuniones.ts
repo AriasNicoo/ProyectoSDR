@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Reunion, FiltroFecha, TipoMensaje, EstadoMensaje } from '@/lib/types'
 import { getRangoFecha } from '@/lib/utils'
@@ -57,6 +57,7 @@ export function useReuniones(): UseReunionesReturn {
   // Usamos 'todos' como inicial fijo para evitar mismatch de hidratación (SSR vs Client)
   const [filtro, setFiltroState] = useState<FiltroFecha>('todos')
   const [isMounted, setIsMounted] = useState(false)
+  const hasAutoRedirected = useRef(false)
 
   const supabase = createClient()
 
@@ -103,7 +104,10 @@ export function useReuniones(): UseReunionesReturn {
         // Si se determinó adelantar la semana, y estamos parados en la pestaña de "Viernes",
         // automáticamente saltamos al "Lunes" de la próxima semana para que el usuario 
         // no vea el próximo viernes vacío.
-        if (adelantarSemana && filtro === 'viernes') {
+        // PERO solo lo hacemos 1 vez por sesión, para que el usuario sí pueda clickear "Viernes" 
+        // si explícitamente quiere ver el próximo viernes.
+        if (adelantarSemana && filtro === 'viernes' && !hasAutoRedirected.current) {
+          hasAutoRedirected.current = true
           setFiltroState('lunes')
           return // Cortamos la ejecución, el setFiltroState disparará un nuevo fetchReuniones
         }
