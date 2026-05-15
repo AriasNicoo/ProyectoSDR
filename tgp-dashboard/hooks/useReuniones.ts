@@ -71,30 +71,41 @@ export function useReuniones(): UseReunionesReturn {
       let adelantarSemana = false
 
       if (diaSemana === 5) { // Hoy es Viernes
-        // Buscamos la última reunión de hoy viernes
-        const { data: ultReunion } = await supabase
-          .from('reuniones')
-          .select('hora_reunion')
-          .eq('fecha_reunion', hoyStr)
-          .order('hora_reunion', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (ultReunion) {
-          const [h, m] = ultReunion.hora_reunion.split(':').map(Number)
-          const horaUltimaReunion = new Date()
-          horaUltimaReunion.setHours(h, m, 0, 0)
-          
-          if (new Date() > horaUltimaReunion) {
-            adelantarSemana = true
-          }
+        // Hora límite estricta: 18:30
+        const horaLimiteFija = new Date()
+        horaLimiteFija.setHours(18, 30, 0, 0)
+        
+        if (hoyObj >= horaLimiteFija) {
+          adelantarSemana = true
         } else {
-          // Fallback por defecto si no hay reuniones el viernes: las 18:30 hrs
-          const horaLimite = new Date()
-          horaLimite.setHours(18, 30, 0, 0)
-          if (new Date() > horaLimite) {
-            adelantarSemana = true
+          // Buscamos la última reunión de hoy viernes
+          const { data: ultReunion } = await supabase
+            .from('reuniones')
+            .select('hora_reunion')
+            .eq('fecha_reunion', hoyStr)
+            .order('hora_reunion', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (ultReunion) {
+            const [h, m] = ultReunion.hora_reunion.split(':').map(Number)
+            const horaTerminoUltimaReunion = new Date()
+            // Se asume que la reunión dura 1 hora, así que adelantamos la semana 
+            // 1 hora después de la última reunión agendada.
+            horaTerminoUltimaReunion.setHours(h + 1, m, 0, 0)
+            
+            if (hoyObj >= horaTerminoUltimaReunion) {
+              adelantarSemana = true
+            }
           }
+        }
+
+        // Si se determinó adelantar la semana, y estamos parados en la pestaña de "Viernes",
+        // automáticamente saltamos al "Lunes" de la próxima semana para que el usuario 
+        // no vea el próximo viernes vacío.
+        if (adelantarSemana && filtro === 'viernes') {
+          setFiltroState('lunes')
+          return // Cortamos la ejecución, el setFiltroState disparará un nuevo fetchReuniones
         }
       }
 
