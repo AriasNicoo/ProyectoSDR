@@ -100,13 +100,21 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Extraer texto del evento (puede venir en text o dentro de attachments si es un bot avanzado)
+      // Extraer texto del evento (puede venir en text, en attachments, o en blocks)
       let textoRaw = event.text || '';
       if (event.attachments && Array.isArray(event.attachments)) {
         for (const att of event.attachments) {
           if (att.pretext) textoRaw += '\n' + att.pretext;
           if (att.text) textoRaw += '\n' + att.text;
           if (att.fallback) textoRaw += '\n' + att.fallback;
+        }
+      }
+      if (event.blocks && Array.isArray(event.blocks)) {
+        for (const block of event.blocks) {
+          // Extraer texto de bloques tipo 'section' o 'header'
+          if (block.text && block.text.text) {
+            textoRaw += '\n' + block.text.text;
+          }
         }
       }
 
