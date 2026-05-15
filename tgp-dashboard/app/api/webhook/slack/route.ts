@@ -100,8 +100,13 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
-      // Solo procesar mensajes humanos que contengan "SDR:"
-      if (event.type === 'message' && !event.bot_id && event.text && /SDR:\s*.+/i.test(event.text)) {
+      // Procesar mensajes que contengan el formato de reunión.
+      // Permitimos mensajes de bots externos (ej: "Avisos Reuniones") pero
+      // bloqueamos los del propio SDR Tracker para evitar bucles infinitos.
+      const esMiPropioBotRespuesta = event.username === 'SDR Tracker' ||
+        /^[✅❌🔄]/.test(event.text ?? '');
+
+      if (event.type === 'message' && !esMiPropioBotRespuesta && event.text && /SDR:\s*.+/i.test(event.text)) {
         const texto: string = event.text;
 
         await addSlackReaction(event.channel, event.ts, 'rocket');
