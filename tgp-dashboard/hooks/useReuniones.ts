@@ -126,13 +126,16 @@ export function useReuniones(): UseReunionesReturn {
       } else {
         // Comportamiento normal de calendario
         query = query
-          .gte('fecha_reunion', hoyStr)
           .order('fecha_reunion', { ascending: true })
           .order('hora_reunion', { ascending: true })
 
         const rango = getRangoFecha(filtro, adelantarSemana)
         if (rango) {
+          // Filtro por día específico (Lunes a Viernes). Muestra TODAS las reuniones de ese día
           query = query.eq('fecha_reunion', rango.desde)
+        } else {
+          // Si es "Todos", mostramos desde hoy en adelante para no ver el historial completo
+          query = query.gte('fecha_reunion', hoyStr)
         }
       }
 

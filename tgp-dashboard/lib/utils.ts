@@ -28,13 +28,8 @@ export function getRangoFecha(filtro: FiltroFecha, adelantarSemana: boolean = fa
   // Convertimos diaSemana a formato donde Lunes=0, Domingo=6 para comparación
   const diaSemanaIndex = diaSemana === 0 ? 6 : diaSemana - 1
 
-  // Si es finde, o si forzamos adelantar, o si el día seleccionado YA PASÓ esta semana
-  // (ej: hoy es Miércoles=2 y selecciono Lunes=0), adelantamos a la próxima semana.
+  // Si es finde, o si forzamos adelantar (viernes tarde), adelantamos a la próxima semana.
   let debeAdelantar = adelantarSemana || diaSemana === 6 || diaSemana === 0
-  
-  if (!debeAdelantar && offset < diaSemanaIndex) {
-    debeAdelantar = true
-  }
 
   if (debeAdelantar) {
     const diasParaAdelantar = diaSemana === 5 ? 3 : (diaSemana === 6 ? 2 : (diaSemana === 0 ? 1 : 7))
