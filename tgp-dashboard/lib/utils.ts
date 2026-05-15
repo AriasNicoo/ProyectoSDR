@@ -11,14 +11,8 @@ export function getRangoFecha(filtro: FiltroFecha, adelantarSemana: boolean = fa
 
   let hoy = new Date()
   
-  // Si es Sábado (6), Domingo (0) o si se solicita adelantar la semana, adelantamos la referencia
-  const diaSemana = hoy.getDay()
-  if (diaSemana === 6 || diaSemana === 0 || adelantarSemana) {
-    const diasParaAdelantar = (diaSemana === 5 || adelantarSemana) ? 3 : 2
-    hoy = addDays(hoy, diasParaAdelantar)
-  }
-
-  const lunesSemanaActual = startOfWeek(hoy, { weekStartsOn: 1 })
+  // Si es Sábado (6), Domingo (0) o si se solicita adelantar la semana explícitamente
+  const diaSemana = hoy.getDay() // 0 = Dom, 1 = Lun, 2 = Mar, 3 = Mie, 4 = Jue, 5 = Vie, 6 = Sab
 
   const diasOffset: Record<string, number> = {
     lunes: 0,
@@ -30,6 +24,24 @@ export function getRangoFecha(filtro: FiltroFecha, adelantarSemana: boolean = fa
 
   const offset = diasOffset[filtro as string]
   if (offset === undefined) return null
+
+  // Convertimos diaSemana a formato donde Lunes=0, Domingo=6 para comparación
+  const diaSemanaIndex = diaSemana === 0 ? 6 : diaSemana - 1
+
+  // Si es finde, o si forzamos adelantar, o si el día seleccionado YA PASÓ esta semana
+  // (ej: hoy es Miércoles=2 y selecciono Lunes=0), adelantamos a la próxima semana.
+  let debeAdelantar = adelantarSemana || diaSemana === 6 || diaSemana === 0
+  
+  if (!debeAdelantar && offset < diaSemanaIndex) {
+    debeAdelantar = true
+  }
+
+  if (debeAdelantar) {
+    const diasParaAdelantar = diaSemana === 5 ? 3 : (diaSemana === 6 ? 2 : (diaSemana === 0 ? 1 : 7))
+    hoy = addDays(hoy, diasParaAdelantar)
+  }
+
+  const lunesSemanaActual = startOfWeek(hoy, { weekStartsOn: 1 })
 
   const diaDeseado = addDays(lunesSemanaActual, offset)
   const diaString = format(diaDeseado, 'yyyy-MM-dd')
