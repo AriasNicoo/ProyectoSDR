@@ -246,6 +246,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: true, updated: 'link_meet' }, { status: 200 });
           }
           console.log('Reunión duplicada detectada, ignorando...');
+          return NextResponse.json({ ok: true, skipped: 'duplicate' }, { status: 200 });
+        }
+
         // ── INSERCIÓN ───────────────────────────────────────────────────
         const { error } = await supabase.from('reuniones').insert([{
           titulo_reunion:          empresa ? `Reunión con ${empresa}` : primeraLinea,
