@@ -100,14 +100,24 @@ export async function POST(req: Request) {
     if (body.type === 'event_callback') {
       const event = body.event;
 
+      // Extraer texto del evento (puede venir en text o dentro de attachments si es un bot avanzado)
+      let textoRaw = event.text || '';
+      if (event.attachments && Array.isArray(event.attachments)) {
+        for (const att of event.attachments) {
+          if (att.pretext) textoRaw += '\n' + att.pretext;
+          if (att.text) textoRaw += '\n' + att.text;
+          if (att.fallback) textoRaw += '\n' + att.fallback;
+        }
+      }
+
       // Procesar mensajes que contengan el formato de reunión.
       // Permitimos mensajes de bots externos (ej: "Avisos Reuniones") pero
       // bloqueamos los del propio SDR Tracker para evitar bucles infinitos.
       const esMiPropioBotRespuesta = event.username === 'SDR Tracker' ||
-        /^[✅❌🔄]/.test(event.text ?? '');
+        /^[✅❌🔄🧪]/.test(textoRaw);
 
-      if (event.type === 'message' && !esMiPropioBotRespuesta && event.text && /SDR:\s*.+/i.test(event.text)) {
-        const texto: string = event.text;
+      if (event.type === 'message' && !esMiPropioBotRespuesta && textoRaw && /SDR:\s*.+/i.test(textoRaw)) {
+        const texto: string = textoRaw;
 
         await addSlackReaction(event.channel, event.ts, 'rocket');
 
@@ -237,6 +247,16 @@ export async function POST(req: Request) {
           }
           console.log('Reunión duplicada detectada, ignorando...');
           return NextResponse.json({ ok: true, skipped: 'duplicate' }, { status: 200 });
+        }
+
+        // ── DETECTAR MODO PRUEBA ─────────────────────────────────────────
+        // Si la empresa o el prospecto dice "PRUEBA" o "TEST", no guardamos en DB.
+        const esPrueba = /prueba|test/i.test(empresa || '') || /prueba|test/i.test(nombre || '');
+
+        if (esPrueba) {
+          console.log('Reunión de prueba detectada, omitiendo inserción en DB.');
+          await sendSlackConfirmation(event.channel, `🧪 ¡Reunión de PRUEBA detectada! Bot funcionando correctamente. (No se guardó en el Dashboard para no afectar métricas).`, event.ts);
+          return NextResponse.json({ ok: true, skipped: 'prueba' }, { status: 200 });
         }
 
         // ── INSERCIÓN ───────────────────────────────────────────────────
