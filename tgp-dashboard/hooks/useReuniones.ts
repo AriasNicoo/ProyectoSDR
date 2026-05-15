@@ -14,6 +14,7 @@ interface UseReunionesReturn {
   setFiltro: (f: FiltroFecha) => void
   actualizarEstadoMensaje: (reunionId: string, tipo: TipoMensaje, estado: EstadoMensaje) => Promise<void>
   eliminarReunion: (reunionId: string) => Promise<void>
+  eliminarReunionesMasivo: (ids: string[]) => Promise<void>
   refetch: () => Promise<void>
 }
 
@@ -212,6 +213,20 @@ export function useReuniones(): UseReunionesReturn {
     }
   }, [fetchReuniones, supabase])
 
+  const eliminarReunionesMasivo = useCallback(async (reunionIds: string[]) => {
+    setReuniones(prev => prev.filter(r => !reunionIds.includes(r.id)))
+
+    const { error: err } = await supabase
+      .from('reuniones')
+      .delete()
+      .in('id', reunionIds)
+
+    if (err) {
+      await fetchReuniones()
+      throw err
+    }
+  }, [fetchReuniones, supabase])
+
   return {
     reuniones,
     loading,
@@ -220,6 +235,7 @@ export function useReuniones(): UseReunionesReturn {
     setFiltro,
     actualizarEstadoMensaje,
     eliminarReunion,
+    eliminarReunionesMasivo,
     refetch: fetchReuniones,
   }
 }

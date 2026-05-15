@@ -8,11 +8,13 @@ interface MeetingCardProps {
   reunion: Reunion
   onSent: (reunionId: string, tipo: TipoMensaje) => Promise<void>
   onDelete: (reunionId: string) => void
+  isSelected?: boolean
+  onToggleSelect?: (reunionId: string) => void
 }
 
 const TIPOS_MENSAJE: TipoMensaje[] = ['post_llamada', '24h', '1h']
 
-export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
+export function MeetingCard({ reunion, onSent, onDelete, isSelected = false, onToggleSelect }: MeetingCardProps) {
   const hasPhone = !!reunion.telefono && reunion.telefono.trim().length > 5
 
   // Cliente: viene del campo explícito `reunion.cliente` (ej: "Edenred Chile")
@@ -32,8 +34,16 @@ export function MeetingCard({ reunion, onSent, onDelete }: MeetingCardProps) {
           <span className="meeting-empresa">{reunion.empresa || 'Sin Empresa'}</span>
           <span className="meeting-name">{reunion.nombre_prospecto || 'Sin Nombre'}</span>
         </div>
-        <div className="meeting-time-pill">
+        <div className="meeting-time-pill" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {reunion.hora_reunion ? reunion.hora_reunion.substring(0, 5) : '--:--'}
+          {onToggleSelect && (
+            <input 
+              type="checkbox" 
+              checked={isSelected}
+              onChange={() => onToggleSelect(reunion.id)}
+              style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent-green)' }}
+            />
+          )}
         </div>
       </div>
 

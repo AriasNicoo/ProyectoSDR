@@ -9,7 +9,7 @@ import { AddMeetingModal } from './AddMeetingModal'
 import { ImportExcelModal } from './ImportExcelModal'
 import { ToastContainer } from './ToastContainer'
 import type { TipoMensaje } from '@/lib/types'
-import { FileSpreadsheet, LogOut } from 'lucide-react'
+import { FileSpreadsheet, LogOut, Trash2 } from 'lucide-react'
 import { signOut } from '@/lib/actions/auth'
 
 export function Dashboard() {
@@ -21,12 +21,14 @@ export function Dashboard() {
     setFiltro,
     actualizarEstadoMensaje,
     eliminarReunion,
+    eliminarReunionesMasivo,
     refetch,
   } = useReuniones()
 
   const { toasts, addToast } = useToast()
   const [modalOpen, setModalOpen] = useState(false)
   const [excelModalOpen, setExcelModalOpen] = useState(false)
+  const [selectedMeetings, setSelectedMeetings] = useState<string[]>([])
 
   const handleSentMessage = async (reunionId: string, tipo: TipoMensaje) => {
     try {
@@ -40,10 +42,36 @@ export function Dashboard() {
   const handleDelete = async (reunionId: string) => {
     try {
       await eliminarReunion(reunionId)
+      setSelectedMeetings(prev => prev.filter(id => id !== reunionId))
       addToast('🗑 Reunion eliminada', 'success')
     } catch {
       addToast('Error al eliminar la reunion', 'error')
     }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedMeetings.length === 0) return
+    if (!confirm(`¿Estás seguro de eliminar ${selectedMeetings.length} reuniones seleccionadas?`)) return
+
+    try {
+      await eliminarReunionesMasivo(selectedMeetings)
+      setSelectedMeetings([])
+      addToast(`🗑 ${selectedMeetings.length} reuniones eliminadas`, 'success')
+    } catch {
+      addToast('Error al eliminar las reuniones', 'error')
+    }
+  }
+
+  const toggleSelection = (id: string) => {
+    setSelectedMeetings(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
+
+  // Limpiar selección cuando se cambia de pestaña
+  const handleFiltroChange = (nuevoFiltro: any) => {
+    setSelectedMeetings([])
+    setFiltro(nuevoFiltro)
   }
 
   const handleAddReunion = async (data: any) => {
@@ -102,6 +130,30 @@ export function Dashboard() {
               <span>Importar Excel</span>
             </button>
 
+            {selectedMeetings.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#B71C1C',
+                  border: '1px solid #9A0007',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '6px 12px',
+                  color: 'white',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(183, 28, 28, 0.4)'
+                }}
+              >
+                <Trash2 size={15} />
+                <span>Borrar ({selectedMeetings.length})</span>
+              </button>
+            )}
+
             <button
               onClick={() => signOut()}
               title="Cerrar Sesión"
@@ -130,7 +182,7 @@ export function Dashboard() {
       {/* TABS DE NAVEGACION (L-V) */}
       <FilterBar
         filtroActivo={filtro}
-        onFiltroChange={setFiltro}
+        onFiltroChange={handleFiltroChange}
         onAgregarReunion={() => setModalOpen(true)}
         reuniones={reuniones}
       />
@@ -166,6 +218,8 @@ export function Dashboard() {
                 reunion={reunion}
                 onSent={handleSentMessage}
                 onDelete={handleDelete}
+                isSelected={selectedMeetings.includes(reunion.id)}
+                onToggleSelect={toggleSelection}
               />
             ))}
           </div>
