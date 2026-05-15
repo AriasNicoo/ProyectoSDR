@@ -28,6 +28,7 @@ interface ParsedMeeting {
   notas: string | null
   sdr_name: string | null
   link_meet: string | null
+  cliente: string | null
 }
 
 export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch }: ImportExcelModalProps) {
@@ -265,7 +266,8 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         canal: canal ? canal.toUpperCase() : 'CALL',
         notas: notasFinal,
         sdr_name: sdrName || userSdrName || 'SDR',
-        link_meet: linkMeet
+        link_meet: linkMeet,
+        cliente: clienteFinal || null
       }
 
       setParsedData([meeting])
@@ -408,6 +410,15 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           const notasMetaStr = metaNotas.length > 0 ? `[${metaNotas.join(' | ')}]` : ''
           const notasFinal = notasMetaStr ? `${notasMetaStr}` : null
 
+          // FILTRO: Solo importar reuniones de hoy en adelante
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          const meetingDate = new Date(`${fecha}T00:00:00`)
+          
+          if (meetingDate < today) {
+            continue // Saltar reuniones pasadas
+          }
+
           meetings.push({
             titulo_reunion: rawEmpresa ? `Reunión con ${rawEmpresa}` : 'Reunión Agendada',
             email_origen: rawEmail || null,
@@ -422,7 +433,8 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
             canal: rawCanal ? rawCanal.toUpperCase() : 'CALL',
             notas: notasFinal,
             sdr_name: rawSdr || userSdrName || 'SDR',
-            link_meet: rawLinkMeet || null
+            link_meet: rawLinkMeet || null,
+            cliente: rawCliente || null
           })
         }
 
