@@ -178,7 +178,12 @@ export function useReuniones(): UseReunionesReturn {
       .channel('reuniones-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'reuniones' },
+        { event: 'INSERT', schema: 'public', table: 'reuniones' },
+        () => fetchReuniones()
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'reuniones' },
         () => fetchReuniones()
       )
       .subscribe()
