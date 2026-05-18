@@ -67,9 +67,20 @@ export function useReuniones(): UseReunionesReturn {
 
     try {
       const hoyObj = new Date()
-      const hoyStr = format(hoyObj, 'yyyy-MM-dd')
+      // Helper para ajustar a la zona horaria local correcta (formato YYYY-MM-DD)
+      const hoyStr = hoyObj.toLocaleDateString('en-CA') // YYYY-MM-DD local
       const diaSemana = hoyObj.getDay()
       let adelantarSemana = false
+
+      // === LIMPIEZA AUTOMÁTICA DE REUNIONES PASADAS ===
+      // Cada vez que cargan las reuniones, borramos de Supabase lo que sea < hoyStr
+      // Lo hacemos sin esperar (.then) para no bloquear la interfaz
+      supabase.from('reuniones')
+        .delete()
+        .lt('fecha_reunion', hoyStr)
+        .then(({ error: deleteErr }) => {
+          if (deleteErr) console.error("Error auto-limpiando reuniones pasadas:", deleteErr)
+        })
 
       if (diaSemana === 5) { // Hoy es Viernes
         // Hora límite estricta: 18:30

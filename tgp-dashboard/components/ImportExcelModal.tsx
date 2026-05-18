@@ -410,12 +410,10 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           const notasMetaStr = metaNotas.length > 0 ? `[${metaNotas.join(' | ')}]` : ''
           const notasFinal = notasMetaStr ? `${notasMetaStr}` : null
 
-          // FILTRO: Solo importar reuniones de hoy en adelante
-          const today = new Date()
-          today.setHours(0, 0, 0, 0)
-          const meetingDate = new Date(`${fecha}T00:00:00`)
+          // FILTRO: Solo importar reuniones de hoy en adelante (comparación de strings ISO YYYY-MM-DD segura)
+          const todayStr = new Date().toISOString().split('T')[0]
           
-          if (meetingDate < today) {
+          if (fecha < todayStr) {
             continue // Saltar reuniones pasadas
           }
 
