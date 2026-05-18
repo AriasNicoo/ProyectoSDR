@@ -131,13 +131,26 @@ export async function POST(req: Request) {
 
         // ── EXTRACCIÓN DE CAMPOS ────────────────────────────────────────
 
-        // Cliente: viene en la PRIMERA LÍNEA como "Reunión {Cliente}"
-        // Limpiamos el markdown de Slack (*bold*, _italic_) antes de parsear
-        const primeraLinea = texto.split('\n')[0].trim().replace(/[*_~`]/g, '').trim();
+        // 1. Limpiamos links de Slack formato <url|texto> a solo "texto" para evitar 
+        // que el "https" reemplace el nombre del cliente.
+        let textoLimpio = texto.replace(/<[^|>]+\|([^>]+)>/g, '$1');
+
+        // 2. Buscar la línea del título (Reunión, Reagendamiento, Agendamiento)
+        const lineas = textoLimpio.split('\n').map(l => l.trim().replace(/[*_~`]/g, '').trim()).filter(l => l.length > 0);
+        let primeraLinea = lineas[0] || '';
         let cliente: string | null = null;
-        const clienteMatch = primeraLinea.match(/^(?:Reuni[oó]n|Reagendamiento|Agendamiento)\s+(.+)/i);
-        if (clienteMatch && clienteMatch[1].trim().length > 1) {
-          cliente = clienteMatch[1].trim();
+        let esReagendamiento = false;
+
+        for (const linea of lineas) {
+          const match = linea.match(/^(?:Reuni[oó]n|Reagendamiento|Agendamiento)\s+(.+)/i);
+          if (match) {
+            primeraLinea = linea; // Guardar la línea real como título
+            cliente = match[1].trim();
+            // Limpiar si quedó un link <url> sin texto
+            cliente = cliente.replace(/^<|>$/g, '').trim();
+            esReagendamiento = /^Reagendamiento/i.test(linea);
+            break;
+          }
         }
 
         const empresa        = extract(texto, /^Empresa:\s*(.+)/im);
@@ -191,7 +204,7 @@ export async function POST(req: Request) {
         const hayTelefono = !!(telefono && telefono.length > 5);
 
         // ── DETECTAR REAGENDAMIENTO ──────────────────────────────────────
-        const esReagendamiento = /^Reagendamiento/i.test(primeraLinea);
+        // esReagendamiento ya fue evaluado en el paso 2 de extracción
 
         if (esReagendamiento) {
           // Buscar la reunión existente por nombre del prospecto (independiente de fecha/hora)
