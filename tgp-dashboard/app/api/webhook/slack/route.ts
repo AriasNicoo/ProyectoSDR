@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { normalizePhoneNumber, hasValidPhone } from '@/lib/phone';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,29 +51,6 @@ function extract(texto: string, regex: RegExp): string | null {
 function extractMultiline(texto: string, regex: RegExp): string | null {
   const match = texto.match(regex);
   return match ? match[1].trim() : null;
-}
-
-/**
- * Normaliza el número de teléfono al formato internacional chileno 569XXXXXXXX.
- */
-function normalizarTelefono(raw: string | null): string {
-  if (!raw || raw.toUpperCase() === 'N/A') return '';
-
-  let phone = raw.replace(/\D/g, '');
-  if (phone.length === 0) return '';
-
-  // Si hay duplicación (ej: 569...569...), tomar solo la primera mitad
-  if (phone.length > 12 && phone.startsWith(phone.substring(Math.floor(phone.length / 2)))) {
-    phone = phone.substring(0, Math.floor(phone.length / 2));
-  } else if (phone.length > 15) {
-    phone = phone.substring(0, 11);
-  }
-
-  if (phone.length === 8)                             phone = '569' + phone;
-  else if (phone.length === 9 && phone.startsWith('9')) phone = '56' + phone;
-  else if (!phone.startsWith('56') && phone.length > 0) phone = '56' + phone;
-
-  return phone;
 }
 
 /**
@@ -178,7 +156,7 @@ export async function POST(req: Request) {
 
         // ── NORMALIZACIÓN ───────────────────────────────────────────────
 
-        const telefono = normalizarTelefono(telefonoRaw);
+        const telefono = normalizePhoneNumber(telefonoRaw);
 
         // Parsear fecha y hora desde "YYYY-MM-DD HH:mm:ss" o variantes
         let fecha = new Date().toISOString().split('T')[0];
@@ -201,7 +179,7 @@ export async function POST(req: Request) {
 
         // Prioridad: si hay teléfono → necesita confirmación WhatsApp
         //            si no hay teléfono → agendado por mail, no necesita WA
-        const hayTelefono = !!(telefono && telefono.length > 5);
+        const hayTelefono = hasValidPhone(telefono);
 
         // ── DETECTAR REAGENDAMIENTO ──────────────────────────────────────
         // esReagendamiento ya fue evaluado en el paso 2 de extracción

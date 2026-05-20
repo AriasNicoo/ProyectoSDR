@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { createClient } from '@/lib/supabase/client'
+import { normalizePhoneNumber, hasValidPhone } from '@/lib/phone'
 import { AlertTriangle, Upload, FileSpreadsheet, Check, X, Loader2 } from 'lucide-react'
 
 interface ImportExcelModalProps {
@@ -100,42 +101,6 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
     }
   }
 
-  // Helper para normalizar el número de teléfono (incluso con notación científica de Excel)
-  const cleanAndFormatPhone = (val: any): string | null => {
-    if (!val) return null
-    let str = val.toString().trim()
-    if (str.length === 0 || str.toLowerCase() === 'n/a') return null
-
-    // Manejar notación científica de Excel como "5,6979E+10" o "5.6979E+10"
-    if (str.toUpperCase().includes('E+')) {
-      try {
-        const normalizedSci = str.replace(',', '.')
-        const num = Number(normalizedSci)
-        if (!isNaN(num)) {
-          str = num.toString()
-        }
-      } catch (e) {
-        console.error("Error al parsear notación científica:", e)
-      }
-    }
-
-    let phone = str.replace(/\D/g, '')
-    if (phone.length === 0) return null
-
-    // Si tiene un formato duplicado de seguridad, tomamos la primera mitad
-    if (phone.length > 12 && phone.startsWith(phone.substring(phone.length / 2))) {
-      phone = phone.substring(0, phone.length / 2)
-    } else if (phone.length > 15) {
-      phone = phone.substring(0, 11)
-    }
-
-    if (phone.length === 8) phone = '569' + phone
-    else if (phone.length === 9 && phone.startsWith('9')) phone = '56' + phone
-    else if (!phone.startsWith('56') && phone.length > 0) phone = '56' + phone
-
-    return phone
-  }
-
   // Helper para parsear fechas de Excel/ISO
   const parseDateAndTime = (rawDate: any): { fecha: string; hora: string } => {
     let fecha = new Date().toISOString().split('T')[0]
@@ -230,7 +195,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
         notasFinal = notasFinal ? `[Cliente: ${clienteFinal}] ${notasFinal}` : `[Cliente: ${clienteFinal}]`
       }
 
-      const telefonoFinal = cleanAndFormatPhone(telefono)
+      const telefonoFinal = normalizePhoneNumber(telefono)
 
       let fecha = new Date().toISOString().split('T')[0]
       let hora = '10:00:00'
@@ -394,7 +359,7 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           // Formateo final de campos
           const nombreProspecto = rawNombre || 'Prospecto'
           const { fecha, hora } = parseDateAndTime(rawFecha)
-          const telefonoFinal = cleanAndFormatPhone(rawTelefono)
+          const telefonoFinal = normalizePhoneNumber(rawTelefono)
 
           // Agrupar metadatos adicionales en notas
           const metaNotas = []
@@ -489,7 +454,10 @@ export function ImportExcelModal({ open, onClose, onSuccess, onError, onRefetch 
           continue
         }
 
-        const { error } = await supabase.from('reuniones').insert([item])
+        const { error } = await supabase.from('reuniones').insert([{
+          ...item,
+          necesita_confirmacion: hasValidPhone(item.telefono),
+        }])
         if (error) {
           console.error("Error al insertar reunión:", error)
         } else {

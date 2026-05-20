@@ -1,6 +1,7 @@
 'use client'
 
 import type { Reunion, TipoMensaje } from '@/lib/types'
+import { hasValidPhone } from '@/lib/phone'
 import { formatearFechaReunion } from '@/lib/utils'
 import { WhatsAppButton } from './WhatsAppButton'
 
@@ -15,7 +16,7 @@ interface MeetingCardProps {
 const TIPOS_MENSAJE: TipoMensaje[] = ['post_llamada', '24h', '1h']
 
 export function MeetingCard({ reunion, onSent, onDelete, isSelected = false, onToggleSelect }: MeetingCardProps) {
-  const hasPhone = !!reunion.telefono && reunion.telefono.trim().length > 5
+  const hasPhone = hasValidPhone(reunion.telefono)
 
   // Cliente: viene del campo explícito `reunion.cliente` (ej: "Edenred Chile")
   // Fallback: intentar extraer del campo notas si el registro es antiguo

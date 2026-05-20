@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { Reunion, TipoMensaje } from '@/lib/types'
 import { buildWhatsAppMessage, buildWhatsAppURL } from '@/lib/utils'
+import { hasValidPhone } from '@/lib/phone'
 
 interface WhatsAppButtonProps {
   reunion: Reunion
@@ -18,7 +19,7 @@ const CONFIG: Record<TipoMensaje, { label: string; emoji: string; emailLabel: st
 
 export function WhatsAppButton({ reunion, tipo, onSent }: WhatsAppButtonProps) {
   const [loading, setLoading] = useState(false)
-  const hasPhone = !!reunion.telefono && reunion.telefono.trim().length > 5
+  const hasPhone = hasValidPhone(reunion.telefono)
 
   const campoEstado = tipo === 'post_llamada'
     ? reunion.estado_post_llamada
