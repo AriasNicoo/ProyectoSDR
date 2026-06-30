@@ -69,13 +69,58 @@ function extractFields(text: string) {
   return { remitente, empresa, contacto, correo, telefono, diaHora, sdr, linkMeet, canal };
 }
 
+import crypto from 'crypto';
+
+// Verify that the request came from Slack
+function verifySlackRequest(rawBody: string, headers: Headers, signingSecret: string): boolean {
+  const signature = headers.get('x-slack-signature');
+  const timestamp = headers.get('x-slack-request-timestamp');
+
+  if (!signature || !timestamp) {
+    console.warn('Slack request verification failed: Missing headers.');
+    return false;
+  }
+
+  // Prevent replay attacks (timestamp check within 5 mins)
+  const fiveMinutesInSeconds = 5 * 60;
+  const nowInSeconds = Math.floor(Date.now() / 1000);
+  const requestTimestamp = parseInt(timestamp, 10);
+
+  if (isNaN(requestTimestamp) || Math.abs(nowInSeconds - requestTimestamp) > fiveMinutesInSeconds) {
+    console.warn('Slack request verification failed: Timestamp out of bounds.');
+    return false;
+  }
+
+  const baseString = `v0:${timestamp}:${rawBody}`;
+  const hmac = crypto.createHmac('sha256', signingSecret);
+  const hash = 'v0=' + hmac.update(baseString).digest('hex');
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(hash, 'utf-8'), Buffer.from(signature, 'utf-8'));
+  } catch (err) {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   let text = '';
   
   try {
+    const rawBody = await request.text();
     const contentType = request.headers.get('content-type') || '';
+
+    // Enforce Slack Signature verification if secret is configured
+    const slackSigningSecret = process.env.SLACK_SIGNING_SECRET;
+    if (slackSigningSecret && slackSigningSecret !== 'your-slack-signing-secret') {
+      const isValid = verifySlackRequest(rawBody, request.headers, slackSigningSecret);
+      if (!isValid) {
+        console.error('Slack request verification failed: Invalid signature.');
+        return NextResponse.json({ error: 'Unauthorized: Invalid Slack signature' }, { status: 401 });
+      }
+    }
+
     if (contentType.includes('application/json')) {
-      const body = await request.json();
+      const body = JSON.parse(rawBody);
       
       // Slack URL verification challenge
       if (body.challenge) {
@@ -85,8 +130,8 @@ export async function POST(request: NextRequest) {
       text = body.text || (body.event && body.event.text) || '';
     } else {
       // Urlencoded form payload (Slash Commands/Outgoing Webhooks)
-      const formData = await request.formData();
-      text = (formData.get('text') as string) || '';
+      const params = new URLSearchParams(rawBody);
+      text = params.get('text') || '';
     }
   } catch (err) {
     console.error('Error parsing Slack request payload:', err);
