@@ -21,21 +21,21 @@ async function getOrCreateLabelId(gmail: any, labelName: string): Promise<string
   return createRes.data.id;
 }
 
-// Call LLM API (Groq) to evaluate email intention
+// Call LLM API (Grok from xAI) to evaluate email intention
 async function triageReplyWithLLM(replyText: string): Promise<{ intencion_reunion: boolean; resumen: string }> {
-  const apiKey = process.env.GROQ_API_KEY;
+  const apiKey = process.env.GROK_API_KEY;
   if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not configured in environment variables.');
+    throw new Error('GROK_API_KEY is not configured in environment variables.');
   }
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: 'grok-2',
       messages: [
         {
           role: 'system',
