@@ -18,7 +18,15 @@ export async function GET(request: NextRequest) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+
+  if (!clientId || !clientSecret) {
+    return NextResponse.redirect(new URL('/dashboard?auth_status=error&message=Missing+Google+OAuth+credentials+on+server', request.url));
+  }
+
+  // Dynamically determine the redirect URI based on the request host
+  const host = request.headers.get('host') || 'localhost:3000';
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const redirectUri = `${protocol}://${host}/api/auth/google/callback`;
 
   try {
     const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
